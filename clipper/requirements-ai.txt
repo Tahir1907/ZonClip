@@ -1,0 +1,4 @@
+# Optional Anthropic integration for AI titles, re-ranking, natural-language edits,
+# and caption cleanup. This is NOT required for local clipping or the Studio.
+# API usage may incur charges; do not install unless you explicitly want this integration.
+anthropic>=0.40
