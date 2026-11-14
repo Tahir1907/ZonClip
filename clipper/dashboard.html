@@ -959,9 +959,10 @@ function connHelp(plat){if(plat==="youtube")return `<details><summary>How to get
   <li>Add your own TikTok account as a target/sandbox user so you can upload to it.</li>
   <li>Paste the Client key + secret above → <b>Save keys</b> → <b>Connect</b>.</li></ol>
   <div class="sub">The free path sends clips to your <b>TikTok inbox</b> — open the app, tap the notification to add a caption and post (you can make it public there).</div></details>`;}
-function renderQueue(){const host=$("#postqueue");if(!host)return;const q=(S.posting&&S.posting.queue)||[];
-  if(!q.length){host.innerHTML='<div class="sub">Nothing queued yet.</div>';return;}
-  host.innerHTML=q.map(it=>{const icon=it.platform==="youtube"?"▶️":"🎵",res=it.result||{};let sub=it.when?("⏰ "+fmtDate(it.when)):"now";
+function renderQueue(){const host=$("#postqueue");if(!host)return;const q=(S.posting&&S.posting.queue)||[],u=(S.posting&&S.posting.usage)||{};
+  const usageLine=`<div class="sub" style="margin-bottom:8px">Completed today: ${u.youtube_uploads||0} YouTube · ${u.tiktok_uploads||0} TikTok. Provider quotas vary by account; rate-limit errors appear on the affected queue item.</div>`;
+  if(!q.length){host.innerHTML=usageLine+'<div class="sub">Nothing queued yet.</div>';return;}
+  host.innerHTML=usageLine+q.map(it=>{const icon=it.platform==="youtube"?"▶️":"🎵",res=it.result||{};let sub=it.when?("⏰ "+fmtDate(it.when)):"now";
     if(it.status==="uploaded")sub=it.platform==="youtube"?("Uploaded · "+(res.privacy==="public"?"Public":"set Public in Studio")):"In your TikTok inbox — tap the notification in the app to post";
     else if(it.status==="uploading")sub="uploading "+(it.progress||0)+"%";
     else if(it.status==="error")sub=it.error||"failed";
