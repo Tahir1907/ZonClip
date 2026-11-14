@@ -151,7 +151,7 @@ class State:
                     if frac is not None:
                         j["progress"] = int(frac * 100)
             try:
-                use_ai = bool(util.get_api_key())     # AI picks the best clips + writes content-relevant
+                use_ai = bool(self.cfg.ai_enabled and util.get_api_key())  # external AI is explicit opt-in
                 project = jobsmod.make_clips(self.cfg, vod, out_dir, count=count, ai=use_ai, progress_cb=pcb)
                 #                                  title/caption/hashtags from the transcript (falls back to local if it fails)
                 if project is None:
@@ -201,11 +201,26 @@ class State:
         return jid
 
     def _under_library(self, p: str) -> bool:
+        """Containment check that resolves symlinks before comparing paths."""
         try:
-            return os.path.commonpath([os.path.abspath(self.library_root), os.path.abspath(p)]) \
-                == os.path.abspath(self.library_root)
-        except ValueError:
+            root = os.path.realpath(os.path.abspath(self.library_root))
+            target = os.path.realpath(os.path.abspath(p))
+            return os.path.commonpath([root, target]) == root
+        except (OSError, ValueError):
             return False
+
+    def valid_vod(self, p: str) -> bool:
+        """Only allow regular video files inside the configured library."""
+        p = os.path.abspath(p or "")
+        return (self._under_library(p) and os.path.isfile(p)
+                and p.lower().endswith(self._VIDEO_EXT))
+
+    def valid_project_dir(self, p: str) -> bool:
+        """Only open project folders inside the configured library."""
+        p = os.path.abspath(p or "")
+        project_file = os.path.join(p, "project.json")
+        return (self._under_library(p) and os.path.isdir(p)
+                and os.path.isfile(project_file) and self._under_library(project_file))
 
     def review_vod(self, p: str) -> str | None:
         """A library VOD path, validated for the Home 'review' player (inside library_root, a video
@@ -399,7 +414,8 @@ class State:
                 d["can_reset"] = bool(c.get("export_spec"))
                 clips.append(d)
             return {"active": True, "vod": os.path.basename(self.vod), "vod_duration": self.vod_duration,
-                    "out_dir": self.out_dir, "ai_available": bool(util.get_api_key()), "clips": clips}
+                    "out_dir": self.out_dir,
+                    "ai_available": bool(self.cfg.ai_enabled and util.get_api_key()), "clips": clips}
 
     def normalize_after_segments(self, c):
         """Keep element/chat seg_index valid after segments change; drop stale
@@ -690,6 +706,28 @@ class Handler(BaseHTTPRequestHandler):
         super().setup()
         self._started = False
 
+    def _local_request_allowed(self) -> bool:
+        """Reject DNS-rebinding Host headers and cross-origin browser writes.
+
+        The dashboard is intentionally loopback-only. Keep requests on the exact local
+        origin so a hostile website cannot use a browser as a bridge into the user's files.
+        """
+        try:
+            host = urlparse("//" + (self.headers.get("Host") or "")).hostname
+            host_port = urlparse("//" + (self.headers.get("Host") or "")).port
+            allowed = {"127.0.0.1", "localhost", "::1"}
+            if host not in allowed or host_port != self.server.server_port:
+                return False
+            origin = self.headers.get("Origin")
+            if origin:
+                parsed = urlparse(origin)
+                if (parsed.scheme != "http" or parsed.hostname != host
+                        or parsed.port != self.server.server_port):
+                    return False
+            return True
+        except ValueError:
+            return False
+
     # ---------- response helpers ----------
     def _send(self, code, body=b"", ctype="application/octet-stream", extra=None):
         if isinstance(body, str):
@@ -726,6 +764,8 @@ class Handler(BaseHTTPRequestHandler):
     # ---------- routing ----------
     def do_GET(self):
         self._started = False
+        if not self._local_request_allowed():
+            return self._send(403, "local dashboard requests only", "text/plain")
         u = urlparse(self.path)
         p, q = u.path, parse_qs(u.query)
         try:
@@ -791,6 +831,21 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         self._started = False
+        if not self._local_request_allowed():
+            return self._send(403, "local dashboard requests only", "text/plain")
+        if self.headers.get("Transfer-Encoding"):
+            return self._json({"error": "chunked request bodies are not supported"}, 400)
+        content_type = (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+        if content_type != "application/json":
+            return self._json({"error": "application/json required"}, 415)
+        try:
+            length = int(self.headers.get("Content-Length", "0") or 0)
+        except ValueError:
+            return self._json({"error": "invalid Content-Length"}, 400)
+        if length < 0:
+            return self._json({"error": "invalid Content-Length"}, 400)
+        if length > 8 * 1024 * 1024:
+            return self._json({"error": "request body too large (8 MiB maximum)"}, 413)
         u = urlparse(self.path)
         p = u.path
         try:
@@ -803,19 +858,19 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "ai_available": bool(util.get_api_key())})
             if p == "/api/new_job":
                 vod = body.get("vod") or ""
-                if not (vod and os.path.exists(vod)):
-                    return self._json({"error": "VOD not found"}, 400)
-                return self._json({"job": STATE.start_new_job(vod, body.get("count"))})
+                if not STATE.valid_vod(vod):
+                    return self._json({"error": "Choose a video file inside your configured Videos library."}, 400)
+                return self._json({"job": STATE.start_new_job(os.path.realpath(vod), body.get("count"))})
             if p == "/api/new_longform":
                 vod = body.get("vod") or ""
-                if not (vod and os.path.exists(vod)):
-                    return self._json({"error": "VOD not found"}, 400)
-                return self._json({"job": STATE.start_longform_job(vod)})
+                if not STATE.valid_vod(vod):
+                    return self._json({"error": "Choose a video file inside your configured Videos library."}, 400)
+                return self._json({"job": STATE.start_longform_job(os.path.realpath(vod))})
             if p == "/api/open_job":
                 d = body.get("dir") or ""
-                if not os.path.exists(os.path.join(d, "project.json")):
-                    return self._json({"error": "no clip batch there"}, 400)
-                STATE.activate(d)
+                if not STATE.valid_project_dir(d):
+                    return self._json({"error": "Choose a clip batch inside your configured Videos library."}, 400)
+                STATE.activate(os.path.realpath(d))
                 return self._json({"ok": True})
             if p == "/api/delete_job":
                 return self._json({"ok": STATE.delete_job(body.get("dir") or "")})
