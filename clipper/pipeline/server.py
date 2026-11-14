@@ -43,7 +43,9 @@ def _no_nan(_v):
 
 def _configured_web_origin() -> str:
     """Return a strictly validated single web origin; never accept arbitrary CSP/header text."""
-    raw = (getattr(STATE.cfg, "web_origin", "") or "").strip().rstrip("/") if "STATE" in globals() else ""
+    state = globals().get("STATE")
+    cfg = getattr(state, "cfg", None)
+    raw = (getattr(cfg, "web_origin", "") or "").strip().rstrip("/")
     if not raw:
         return ""
     parsed = urlparse(raw)
