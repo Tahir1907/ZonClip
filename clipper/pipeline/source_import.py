@@ -9,7 +9,7 @@ import os
 import re
 import shutil
 import tempfile
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 
 VIDEO_EXTS = {".mp4", ".mkv", ".mov", ".webm", ".m4v", ".ts", ".flv"}
@@ -33,7 +33,7 @@ def _validate_url(url: str, platform: str) -> str:
     if platform == "youtube":
         valid = (host == "youtu.be" and bool(parsed.path.strip("/"))) or (
             host != "youtu.be" and (
-                parsed.path == "/watch" and bool(parsed.parse_qs if False else True)
+                parsed.path == "/watch" and bool(parse_qs(parsed.query).get("v", [""])[0])
                 or re.match(r"^/(shorts|live|embed|v)/[^/]+", parsed.path)
             )
         )
