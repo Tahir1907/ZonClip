@@ -3,8 +3,8 @@
 **Turn a Twitch VOD into ready-to-post vertical clips — automatically, locally, and for free.**
 
 ZonClip transcribes a stream locally (GPU acceleration when available), finds clippable moments, and renders each
-as a 9:16 short (facecam on top, gameplay on the bottom, animated word-by-word captions, a follow
-watermark, and a hook titlecard). A local **ZonClip Studio** app lets you trim, restyle, and fine-tune every
+as 9:16 shorts (facecam on top, gameplay on the bottom, animated word-by-word captions, a follow
+watermark, and a hook titlecard). The VOD target is 45 individual clips plus up to 15 score-ranked compilations (three clips per compilation). A local **ZonClip Studio** app lets you trim, restyle, and fine-tune every
 clip with a live WYSIWYG preview — then post or schedule to **YouTube Shorts**, **TikTok**, and **Instagram Reels**
 without leaving the app. It also assembles long-form 16:9 YouTube videos from the same VOD.
 
