@@ -226,7 +226,7 @@ platform's terms.
 
 ## Current implementation scope
 
-The current release is a **local Windows VOD application**. Continuous live-stream capture, dynamic live highlight queues, automatic ranking/compilation videos, Instagram publishing, and a Vercel-hosted web dashboard with a secure local processing agent are not implemented yet. YouTube and TikTok posting are supported in the existing semi-automated flows described above.
+The current release is a **local Windows application**. The Studio UI, AI models, transcription, clip detection, rendering, project files, and publishing queue run on your PC. There is no hosted dashboard, cloud rendering, remote processing agent, or cloud storage. Internet access is used only for optional model downloads and official platform sign-in/publishing.
 
 See [the Windows test plan](docs/TEST_PLAN.md) before running your first test.
 
@@ -242,6 +242,6 @@ ZonClip includes an official Meta Instagram Reels publishing integration using t
 
 
 
-## Vercel web dashboard shell
+## Local-only architecture
 
-The web/ folder contains a static Vercel-hostable shell that embeds the existing local Studio. It keeps video processing and credentials on the Windows PC; it is not a cloud renderer or cross-device remote agent. See [Vercel setup and security](docs/WEB_DASHBOARD.md).
+ZonClip runs as a Windows desktop application. Its local HTTP server binds to loopback only and is opened inside the native desktop window (with a local browser fallback). No Vercel deployment or hosted web dashboard is part of the project.
