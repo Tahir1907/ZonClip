@@ -133,6 +133,34 @@ class State:
         return {"dir": d, "name": os.path.basename(d), "vod": os.path.basename(vod),
                 "clips": n, "mtime": os.path.getmtime(os.path.join(d, "project.json"))}
 
+
+    def start_source_import(self, url: str, platform: str) -> str:
+        """Fetch an authorized public Twitch VOD or YouTube video into the local library."""
+        with self.lock:
+            self.job_seq += 1
+            jid = f"imp{self.job_seq}"
+            self.jobs[jid] = {"kind": "source_import", "status": "running",
+                              "phase": "Connecting to source…", "progress": 0, "error": ""}
+        def run():
+            try:
+                from .source_import import download_source
+                def pcb(phase, frac=None):
+                    job = self.jobs.get(jid)
+                    if job:
+                        job["phase"] = phase
+                        if frac is not None:
+                            job["progress"] = max(0, min(99, int(frac * 100)))
+                path, title = download_source(url, platform, self.library_root, pcb)
+                if not self.valid_vod(path):
+                    raise RuntimeError("The imported file did not pass local video validation.")
+                self.jobs[jid].update(status="done", phase="Import complete", progress=100,
+                                      path=path, name=os.path.basename(path), title=title)
+            except Exception as e:  # noqa: BLE001
+                self.jobs[jid].update(status="error", phase="Import failed", error=str(e))
+                log(f"[source import] {platform} import failed: {e}")
+        threading.Thread(target=run, daemon=True).start()
+        return jid
+
     def start_new_job(self, vod: str, count=None) -> str:
         """Run the clip pipeline on `vod` in a background thread; activates the result when done."""
         from . import jobs as jobsmod
@@ -874,6 +902,14 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"ok": False, "error": "empty key"}, 400)
                 util.set_api_key(k)
                 return self._json({"ok": True, "ai_available": bool(util.get_api_key())})
+            if p == "/api/import_url":
+                url = (body.get("url") or "").strip()
+                platform = (body.get("platform") or "").strip().lower()
+                if platform not in ("twitch", "youtube"):
+                    return self._json({"error": "Choose Twitch or YouTube."}, 400)
+                if not url:
+                    return self._json({"error": "Paste a video link first."}, 400)
+                return self._json({"job": STATE.start_source_import(url, platform)})
             if p == "/api/new_job":
                 vod = body.get("vod") or ""
                 if not STATE.valid_vod(vod):
