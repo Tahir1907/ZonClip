@@ -171,7 +171,9 @@ needs a public website — out of scope for a free, local tool.
 
 You connect your own developer apps once (Google Cloud + TikTok for Developers) and paste the client
 keys into the Studio's **🚀 Posting** panel; OAuth runs through the app's own loopback redirect, so no
-public site is needed for sign-in. Step-by-step setup is built into that panel and detailed in
+public site is needed for sign-in. The queue records completed uploads per day and gives clearer
+quota/rate-limit errors. Provider quotas vary by platform, account, and API project, so ZonClip does
+not invent a universal hard-coded daily limit. Step-by-step setup is built into that panel and detailed in
 [`clipper/README.md`](clipper/README.md#posting-setup).
 
 ---
