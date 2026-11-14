@@ -205,7 +205,7 @@
   <h1>Clip<span class="g">Forge</span> <span style="font-weight:400;color:var(--muted)">Studio</span></h1>
   <div class="sub" id="vodinfo"></div><div class="spacer"></div>
   <span id="savechip" class="savechip saved">Saved</span>
-  <div id="keybox" class="row" style="display:none;width:auto"><input id="apikey" type="password" placeholder="Anthropic API key" style="width:180px"><button onclick="saveKey()">Enable AI</button></div>
+  <div id="keybox" class="row" style="display:none;width:auto"><input id="apikey" type="password" placeholder="Optional paid Anthropic API key" style="width:210px"><button onclick="saveKey()">Save AI key</button></div>
   <span class="chip" id="aistat"></span><button onclick="showHome()" title="Pick a different VOD or batch">🏠 Home</button><button onclick="location.href='/longform'" title="Turn this VOD into 20–90 min YouTube videos">🎬 Long-form</button><button onclick="openConn()" title="Connect TikTok / YouTube and see scheduled posts">🚀 Posting</button><button onclick="load()" title="Re-fetch clips (after local project edits)">↻ Reload</button><button onclick="showHelp()">? Help</button><button onclick="quitApp()" title="Stop ZonClip">⏻ Quit</button>
 </header>
 <div id="app">
@@ -293,7 +293,7 @@ function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");cl
 
 const PLATFORMS=["tiktok","shorts"],STAGE_W=360,RENDER_W=1080,RENDER_H=1920;
 const scale=()=>STAGE_W/RENDER_W;
-const S={clips:[],curId:null,sel:null,ai:false,vodDur:0,filter:"all",safezone:false,dirty:new Set(),undo:[],redo:[],renders:{},closed:{chat:1,cap:1,post:0,ai:1,layers:1},posting:null,_qpoll:null};
+const S={clips:[],curId:null,sel:null,ai:false,aiEnabled:false,aiKeyConfigured:false,vodDur:0,filter:"all",safezone:false,dirty:new Set(),undo:[],redo:[],renders:{},closed:{chat:1,cap:1,post:0,ai:1,layers:1},posting:null,_qpoll:null};
 function cur(){return S.clips.find(c=>c.id===S.curId);}
 function segDur(c,i=0){const s=c.segments[i];return s?s.end-s.start:0;}
 function totalDur(c){return c.segments.reduce((a,s)=>a+(s.end-s.start),0);}
@@ -304,15 +304,16 @@ async function load(){
   const p=await jget("/api/project");
   if(p.active===false){showHome();return;}          /* no project loaded -> Home picker */
   hideHome();
-  S.clips=p.clips;S.ai=p.ai_available;S.vodDur=p.vod_duration;
+  S.clips=p.clips;S.ai=p.ai_available;S.aiEnabled=!!p.ai_enabled;S.aiKeyConfigured=!!p.ai_configured;S.vodDur=p.vod_duration;
   await loadPosting();                             /* await: post box must know connection state before first render */
   $("#vodinfo").textContent=`${p.vod} · ${fmtClock(p.vod_duration)} · ${p.clips.length} clips`;
-  $("#keybox").style.display=S.ai?"none":"flex";
-  $("#aistat").textContent=S.ai?"AI ready":"AI off";$("#aistat").style.color=S.ai?"var(--ok)":"var(--muted)";
+  $("#keybox").style.display=(S.aiEnabled&&!S.ai)?"flex":"none";
+  $("#aistat").textContent=S.ai?"Optional AI ready":"Local AI off";$("#aistat").style.color=S.ai?"var(--ok)":"var(--muted)";
   renderFilters();renderClipList();
   if(!S.curId&&S.clips[0])selectClip(S.clips[0].id);else if(S.curId)renderEditor();
 }
-async function saveKey(){const k=$("#apikey").value.trim();if(!k)return;const r=await jpost("/api/key",{key:k});if(r.ai_available){toast("AI enabled");load();}else toast("key rejected");}
+async function saveKey(){const k=$("#apikey").value.trim();if(!k)return;const r=await jpost("/api/key",{key:k});if(r.ok&&r.ai_available){toast("Optional paid AI enabled");load();}else if(r.ok){toast("Key saved, but optional AI is disabled in config.json.");}else toast(r.error||"Could not save key");}
+function aiUnavailableMessage(){return S.aiEnabled?"Add the optional Anthropic API key first.":"Optional paid AI is off. Set ai_enabled:true in your local config.json and restart ZonClip to enable it.";}
 
 /* ---------- Home / VOD picker ---------- */
 function he(s){return (s||"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));}
@@ -340,7 +341,7 @@ async function showHome(){
 function hideHome(){$("#home").style.display="none";}
 async function startJob(path,name){
   const hj=$("#homejob");hj.style.display="block";
-  hj.innerHTML=`<b>Making clips from ${he(name)}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Starting…</div><div class="muted" style="margin-top:6px">Transcribing the whole stream on your GPU, then rendering — a few minutes. You can leave this open.</div>`;
+  hj.innerHTML=`<b>Making clips from ${he(name)}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Starting…</div><div class="muted" style="margin-top:6px">Transcribing locally (GPU acceleration when available, otherwise CPU), then rendering. The first run may take longer while the model downloads.</div>`;
   hj.scrollIntoView({behavior:"smooth",block:"start"});
   const r=await jpost("/api/new_job",{vod:path});
   if(!r.job){$("#hphase").textContent="Couldn’t start: "+(r.error||"unknown");return;}
@@ -895,7 +896,7 @@ function postActions(c){const ps=S.posting||{},yt=ps.youtube||{},tt=ps.tiktok||{
   if(stale)b+=`<div class="sub" style="margin-top:7px;color:var(--pending)">⬇ Download this clip first — posting uploads the finished file.</div>`;
   b+=`<div class="sub" style="margin-top:7px">YouTube uploads to your channel (unverified API projects land <b>Private</b> — flip to Public in Studio). TikTok goes to your <b>inbox</b> — open the app and tap the notification to add a caption &amp; post.</div></div>`;
   return b;}
-function aiSect(c){let b=`<label>Tell the AI what to change</label><textarea id="aiInst" placeholder="e.g. start where I first spot the prop; punchier captions"></textarea><button class="sm primary" style="margin-top:6px" onclick="aiEdit()" ${S.ai?'':'disabled'}>${S.ai?'Apply with AI':'Add API key'}</button>`;
+function aiSect(c){let b=`<label>Optional AI editing (external API)</label><textarea id="aiInst" placeholder="e.g. start where I first spot the prop; punchier captions"></textarea><button class="sm primary" style="margin-top:6px" onclick="aiEdit()" ${S.ai?'':'disabled'}>${S.ai?'Apply with AI':(S.aiEnabled?'Add API key':'Optional AI is off')}</button>`;
   if(c.notes)b+=`<div class="sub" style="margin-top:8px;white-space:pre-wrap;max-height:110px;overflow:auto">${c.notes}</div>`;return sect("ai","AI assist",b);}
 function bindPanelEvents(c){
   $$("#panels [data-k]").forEach(inp=>{const k=inp.dataset.k;const handler=()=>{const e=(c.elements||[]).find(x=>x.id===S.sel);if(!e)return;
@@ -915,7 +916,7 @@ function addSeg(){const c=cur(),s=parseT($("#addS").value),e=parseT($("#addE").v
 function removeSeg(i){const c=cur();if(c.segments.length<=1)return;c.segments.splice(i,1);touch();renderPanels();renderTimeline();renderTrimBar();markTimingChanged();}
 function applyChat(){const c=cur();c.chat=Object.assign({},c.chat||{},{enabled:$("#chatEn").checked,grab_t:parseT($("#chatGt").value),pos:$("#chatPos").value,t_start:parseFloat($("#chatTs").value),t_end:parseFloat($("#chatTe").value),scale:parseFloat($("#chatSc").value)});touch();renderStage();}
 function applyCapStyle(){const c=cur();c.captions_enabled=$("#capEn").checked;c.caption_style=Object.assign({},c.caption_style||{},{size:parseInt($("#capSize").value),max_words:parseInt($("#capMax").value),fill:$("#capFill").value.replace("#","").toUpperCase(),highlight:$("#capHi").value.replace("#","").toUpperCase(),margin_v:parseInt($("#capPos").value)});touch();markPreviewStale();}
-async function cleanCaptions(){if(!S.ai){toast("Add an API key first");return;}const c=cur();flushSave();
+async function cleanCaptions(){if(!S.ai){toast(aiUnavailableMessage());return;}const c=cur();flushSave();
   const box=$("#wordbox");if(box)box.innerHTML="<div class='sub'>✨ cleaning captions…</div>";toast("AI cleaning captions…");
   const r=await jpost(`/api/clip/${c.id}/clean_captions`,{});
   if(r.error){toast(r.error);if(box)box.innerHTML="";return;}
@@ -1029,7 +1030,7 @@ async function aiEdit(){const c=cur(),cid=c.id,inst=$("#aiInst").value.trim();if
   const r=await jpost(`/api/clip/${cid}/ai`,{instruction:inst});if(r.error){toast("AI: "+r.error);return;}applyClip(r.clip);c.export_stale=true;
   if(r.changes&&r.changes.note)toast("AI: "+r.changes.note);renderEditor();
   if(r.job){const iv=setInterval(async()=>{const s=await jget(`/api/job/${r.job}`);if(s.status==="done"){clearInterval(iv);await mergeStatus();if(cur()&&cur().id===cid)reloadStage();renderClipList();}else if(s.status==="error"){clearInterval(iv);}},1500);}}
-async function aiTitles(){if(!S.ai){toast("Add an API key first");return;}if(!confirm("Write AI titles & captions for ALL clips? Overwrites existing titles."))return;
+async function aiTitles(){if(!S.ai){toast(aiUnavailableMessage());return;}if(!confirm("Write AI titles & captions for ALL clips? Overwrites existing titles."))return;
   const b=$("#aititles");b.disabled=true;b.textContent="✨ Writing…";try{const r=await jpost("/api/ai_titles",{});if(r.error)toast("AI: "+r.error);else{toast("Updated "+r.updated+" titles");await load();}}finally{b.disabled=false;b.textContent="✨ AI titles (all)";}}
 async function renderApproved(){flushSave();const r=await jpost("/api/render_approved",{});toast(`Exporting ${r.queued} approved clips`);
   (r.jobs||[]).forEach((j,i)=>{const id=(r.ids||[])[i];if(!id)return;const iv=setInterval(async()=>{const s=await jget(`/api/job/${j}`);if(s.status==="done"||s.status==="error"){clearInterval(iv);await mergeStatus();renderClipList();if(cur()&&cur().id===id)updateExportBadge();}},2000);});}
