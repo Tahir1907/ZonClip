@@ -417,7 +417,9 @@ class State:
                 clips.append(d)
             return {"active": True, "vod": os.path.basename(self.vod), "vod_duration": self.vod_duration,
                     "out_dir": self.out_dir,
-                    "ai_available": bool(self.cfg.ai_enabled and util.get_api_key()), "clips": clips}
+                    "ai_available": bool(self.cfg.ai_enabled and util.get_api_key()),
+                    "ai_enabled": bool(self.cfg.ai_enabled),
+                    "ai_configured": bool(util.get_api_key()), "clips": clips}
 
     def normalize_after_segments(self, c):
         """Keep element/chat seg_index valid after segments change; drop stale
