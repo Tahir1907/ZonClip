@@ -65,12 +65,12 @@ def hex_to_ass(h: str, alpha: int = 0) -> str:
 @dataclass
 class Config:
     # ---- transcription (faster-whisper) ----
-    model: str = "large-v3"
-    device: str = "auto"                 # auto -> cuda if available else cpu
-    compute_type_gpu: str = "float16"    # ~3GB VRAM, fits the RTX 4060 8GB
-    compute_type_cpu: str = "int8"       # validation-only fallback (hours)
+    model: str = "small.en"             # practical default for CPU-first Windows laptops; override in config.json
+    device: str = "auto"                 # auto -> CUDA when available, otherwise CPU
+    compute_type_gpu: str = "float16"
+    compute_type_cpu: str = "int8"       # memory-efficient CPU inference
     language: str = "en"
-    beam_size: int = 5
+    beam_size: int = 3                   # faster CPU decoding; raise to 5 for accuracy over speed
     vad_filter: bool = False             # OFF: VAD mis-maps word timestamps (captions drift early)
     condition_on_previous_text: bool = False  # off -> fewer hallucination loops on long noisy audio
 
