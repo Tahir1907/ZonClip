@@ -16,7 +16,9 @@ Use local recordings that you own or have permission to process. ZonClip does no
 
 ## 2. Start the ZonClip watcher
 
-Open PowerShell in the repository's clipper directory:
+**One-click option:** double-click LiveMode.bat in the clipper folder. It uses the default input folder under your Videos directory, or lets you enter another folder.
+
+**PowerShell option:** open PowerShell in the repository's clipper directory:
 
 ```powershell
 $env:PYTHONPATH = (Get-Location)
