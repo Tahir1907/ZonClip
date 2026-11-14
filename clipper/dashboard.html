@@ -308,7 +308,7 @@ async function load(){
   await loadPosting();                             /* await: post box must know connection state before first render */
   $("#vodinfo").textContent=`${p.vod} · ${fmtClock(p.vod_duration)} · ${p.clips.length} clips`;
   $("#keybox").style.display=(S.aiEnabled&&!S.ai)?"flex":"none";
-  $("#aistat").textContent=S.ai?"Optional AI ready":"Local AI off";$("#aistat").style.color=S.ai?"var(--ok)":"var(--muted)";
+  $("#aistat").textContent=S.ai?"Optional AI ready":"External AI off";$("#aistat").style.color=S.ai?"var(--ok)":"var(--muted)";
   renderFilters();renderClipList();
   if(!S.curId&&S.clips[0])selectClip(S.clips[0].id);else if(S.curId)renderEditor();
 }
