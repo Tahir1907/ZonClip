@@ -83,7 +83,7 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1
 
 `setup.ps1` creates everything under your **ClipForge home** (default `%USERPROFILE%\clipforge`) and
 installs the free local dependencies from `requirements.txt`. Optional Anthropic features are kept separate in
-`requirements-ai.txt` and may incur API charges; they are not needed for clipping. If you have an NVIDIA GPU it also installs the
+`requirements-ai.txt` and may incur API charges; they are disabled by default and are not needed for clipping. To use them, explicitly set `ai_enabled` to `true` in your local `config.json` and install `requirements-ai.txt`. If you have an NVIDIA GPU it also installs the
 CUDA wheels.
 
 Prefer to do it by hand?
@@ -142,6 +142,7 @@ ZonClip ships with neutral defaults. To personalise it **without editing any cod
   "channel_name": "YourChannelName",
   "channel_persona": "a comedic gaming streamer",
   "clip_count": 12,
+  "ai_enabled": false,
   "use_nvenc": true
 }
 ```
@@ -156,7 +157,7 @@ ZonClip ships with neutral defaults. To personalise it **without editing any cod
 |---|---|---|
 | `CLIPFORGE_HOME` | `%USERPROFILE%\clipforge` | where the venv, models, cache, and `config.json` live |
 | `CLIPFORGE_LIBRARY` | `%USERPROFILE%\Videos` | folder the Home picker scans for VODs + clip batches |
-| `ANTHROPIC_API_KEY` | *(unset)* | enables AI features (or paste the key in the Studio header) |
+| `ANTHROPIC_API_KEY` | *(unset)* | optional external AI key; AI also requires `ai_enabled: true` in `config.json` |
 
 ---
 
