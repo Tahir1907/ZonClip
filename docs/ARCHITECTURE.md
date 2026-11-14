@@ -7,8 +7,8 @@ for the first time who wants the full picture.
 - **Language/stack:** Python 3.11+, ffmpeg/libass, Pillow + NumPy, a stdlib HTTP server, vanilla JS,
   pywebview (WebView2). No web framework, no database.
 - **Design principles:**
-  1. **Local & free.** Everything runs on the user's machine. The only optional paid call is to the
-     Anthropic API for AI copy/ranking.
+  1. **Local & free by default.** Processing runs on the user's machine. Anthropic AI copy/ranking is
+     an optional paid integration, disabled unless `ai_enabled` is explicitly enabled in local config.
   2. **Data is just numbers.** A clip is a JSON record of pixel coordinates, hex colours, and seconds.
      Any edit — by a human in the Studio, by the CLI, or by Claude — is a change to that data + a
      re-render. Nothing about a clip is hidden in binary state.
@@ -98,7 +98,8 @@ clip, while `segments`/`chat.grab_t` are absolute VOD seconds.
   AMD GPUs (no CUDA). Uses a `large-v3-turbo` ggml model with DTW word timing; a configurable
   `wcpp_word_lead_s` shift corrects whisper.cpp's consistent ~0.4 s onset lag so karaoke captions land
   in sync.
-- **faster-whisper** — CUDA on NVIDIA, or CPU. `large-v3`, word timestamps, beam search.
+- **faster-whisper** — CUDA on NVIDIA, or CPU. Uses `cfg.model` (defaults to `small.en` for a
+  CPU-friendlier first run), with word timestamps and configurable beam search.
 - **CPU fallback** — slow but works anywhere.
 
 Transcripts are **cached** keyed to the VOD, so re-running detection/render never re-transcribes. The
