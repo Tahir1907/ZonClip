@@ -3,7 +3,7 @@
 Sends the top candidates (transcript + scores + timestamps) in ONE call and asks
 for the best clips with titles/captions/hashtags + per-platform profanity notes.
 Final order blends local and LLM scores. Requires ANTHROPIC_API_KEY and the
-`anthropic` package (pip install anthropic).
+`anthropic` package (pip install -r requirements-ai.txt).
 """
 from __future__ import annotations
 
@@ -213,7 +213,7 @@ def rerank(cfg: config.Config, cands: list, count: int) -> list:
     try:
         import anthropic
     except ImportError as e:
-        raise RuntimeError("anthropic not installed. Run: pip install anthropic") from e
+        raise RuntimeError("anthropic not installed. Run: pip install -r requirements-ai.txt") from e
 
     client = anthropic.Anthropic(api_key=key)
     payload = _user_payload(cfg, cands, count)
