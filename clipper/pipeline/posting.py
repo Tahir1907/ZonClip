@@ -71,6 +71,7 @@ def _load() -> dict:
     d.setdefault("tiktok", {})
     d.setdefault("queue", [])
     d.setdefault("seq", 0)
+    d.setdefault("daily_usage", {})
     return d
 
 
@@ -129,7 +130,11 @@ class Poster:
                                      "status", "progress", "error", "result")}
              for it in d["queue"][-60:]]
         q.reverse()                         # newest first
+        today = time.strftime("%Y-%m-%d")
+        usage = (d.get("daily_usage") or {}).get(today) or {}
         return {
+            "usage": {"date": today, "youtube_uploads": int(usage.get("youtube", 0)),
+                      "tiktok_uploads": int(usage.get("tiktok", 0))},
             "youtube": {"configured": bool(yt.get("client_id") and yt.get("client_secret")),
                         "connected": bool(yt.get("refresh_token")),
                         "channel": yt.get("channel", "")},
@@ -453,6 +458,16 @@ class Poster:
             d = _load()
             for it in d["queue"]:
                 if it["id"] == jid:
+                    if kw.get("status") == "uploaded" and it.get("status") != "uploaded":
+                        day = time.strftime("%Y-%m-%d")
+                        usage = d.setdefault("daily_usage", {}).setdefault(
+                            day, {"youtube": 0, "tiktok": 0})
+                        plat = it.get("platform")
+                        if plat in ("youtube", "tiktok"):
+                            usage[plat] = int(usage.get(plat, 0)) + 1
+                        # Keep a month of local counters; these are activity counts, not provider quota units.
+                        for old_day in sorted(d["daily_usage"])[:-31]:
+                            d["daily_usage"].pop(old_day, None)
                     it.update(kw)
                     it["updated"] = int(time.time())
                     break
@@ -506,8 +521,17 @@ class Poster:
                 except Exception as e:  # noqa: BLE001
                     log(f"[posting] on_uploaded hook error: {e}")
         except Exception as e:  # noqa: BLE001
-            self._set(jid, status="error", error=str(e))
-            log(f"[posting] {plat} upload {jid} failed: {e}")
+            message = str(e)
+            lowered = message.lower()
+            if plat == "youtube" and any(term in lowered for term in
+                                         ("quotaexceeded", "dailylimitexceeded", "quota exceeded")):
+                message = ("YouTube API quota was reached. Check the YouTube Data API quota in "
+                           "Google Cloud Console, then retry this item when the limit resets. " + message[:400])
+            elif any(term in lowered for term in ("429", "rate limit", "too many requests")):
+                message = (f"{plat.title()} rate limit was reached. Wait for the platform limit to reset, "
+                           "then retry this item. " + message[:400])
+            self._set(jid, status="error", error=message)
+            log(f"[posting] {plat} upload {jid} failed: {message}")
 
 
 # ----------------------------------------------------------------------------- module singleton
