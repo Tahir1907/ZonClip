@@ -48,3 +48,6 @@ jobs:
       - name: Run live-session regression tests
         working-directory: clipper
         run: python -m unittest discover -s tools -p "test_live.py" -v
+      - name: Run Instagram OAuth regression tests
+        working-directory: clipper
+        run: python -m unittest discover -s tools -p "test_instagram_oauth.py" -v
