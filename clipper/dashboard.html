@@ -884,7 +884,7 @@ function postActions(c){const ps=S.posting||{},yt=ps.youtube||{},tt=ps.tiktok||{
   const stale=(!c.export_exists||c.export_stale);
   let b='<div class="postbox">';
   if(c.posted&&Object.keys(c.posted).length){
-    const parts=Object.entries(c.posted).map(([p,info])=>{const nm=p==='youtube'?'▶️ YouTube':'🎵 TikTok';const u=info&&info.url;
+    const parts=Object.entries(c.posted).map(([p,info])=>{const nm=p==='youtube'?'▶️ YouTube':p==='tiktok'?'🎵 TikTok':'📸 Instagram';const u=info&&info.url;
       return (u&&u.startsWith('http'))?`<a href="${u}" target="_blank" rel="noopener" style="color:var(--gold)">${nm}</a>`:nm;});
     b+=`<div class="sub" style="margin-bottom:7px;color:var(--ok)">✓ Already posted: ${parts.join(' · ')} <span style="color:var(--muted)">(posting again makes another copy)</span></div>`;}
   if(!anyConn){b+=`<div class="sub">Connect an account to post from here.</div><div class="row" style="margin-top:8px"><button class="sm primary" onclick="openConn()">🔗 Connect accounts</button></div></div>`;return b;}
@@ -972,7 +972,7 @@ function connHelp(plat){if(plat==="instagram")return `<details><summary>Meta set
 function renderQueue(){const host=$("#postqueue");if(!host)return;const q=(S.posting&&S.posting.queue)||[],u=(S.posting&&S.posting.usage)||{};
   const usageLine=`<div class="sub" style="margin-bottom:8px">Completed today: ${u.youtube_uploads||0} YouTube · ${u.tiktok_uploads||0} TikTok · ${u.instagram_uploads||0} Instagram. Provider quotas vary by account; rate-limit errors appear on the affected queue item.</div>`;
   if(!q.length){host.innerHTML=usageLine+'<div class="sub">Nothing queued yet.</div>';return;}
-  host.innerHTML=usageLine+q.map(it=>{const icon=it.platform==="youtube"?"▶️":"🎵",res=it.result||{};let sub=it.when?("⏰ "+fmtDate(it.when)):"now";
+  host.innerHTML=usageLine+q.map(it=>{const icon=it.platform==="youtube"?"▶️":it.platform==="instagram"?"📸":"🎵",res=it.result||{};let sub=it.when?("⏰ "+fmtDate(it.when)):"now";
     if(it.status==="uploaded")sub=it.platform==="youtube"?("Uploaded · "+(res.privacy==="public"?"Public":"set Public in Studio")):it.platform==="tiktok"?"In your TikTok inbox — tap the notification in the app to post":"Published to Instagram Reels";
     else if(it.status==="uploading")sub="uploading "+(it.progress||0)+"%";
     else if(it.status==="error")sub=it.error||"failed";
