@@ -527,7 +527,7 @@ class Poster:
                                          ("quotaexceeded", "dailylimitexceeded", "quota exceeded")):
                 message = ("YouTube API quota was reached. Check the YouTube Data API quota in "
                            "Google Cloud Console, then retry this item when the limit resets. " + message[:400])
-            elif any(term in lowered for term in ("429", "rate limit", "too many requests")):
+            elif any(term in lowered for term in ("429", "rate limit", "rate_limit", "too many requests")):
                 message = (f"{plat.title()} rate limit was reached. Wait for the platform limit to reset, "
                            "then retry this item. " + message[:400])
             self._set(jid, status="error", error=message)
