@@ -1,6 +1,6 @@
 @echo off
-title ClipForge  (close this window to stop)
-echo Starting ClipForge...
+title ZonClip  (close this window to stop)
+echo Starting ZonClip...
 echo Keep this window open while you work. Close it (or press Ctrl+C) to stop.
 echo.
 rem Run from this script's own folder, so it works wherever the repo is cloned.
@@ -13,5 +13,5 @@ set "PY=%CF_HOME%\.venv\Scripts\python.exe"
 if not exist "%PY%" set "PY=python"
 "%PY%" "%~dp0dashboard.py"
 echo.
-echo ClipForge has stopped. You can close this window.
+echo ZonClip has stopped. You can close this window.
 pause >nul
