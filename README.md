@@ -40,8 +40,9 @@ Full design notes: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ## Features
 
-- **Local transcription** on the GPU — whisper.cpp (Vulkan, great on AMD) or faster-whisper
-  (CUDA on NVIDIA), with automatic backend selection and a CPU fallback. Transcripts are cached.
+- **Local transcription** with cached word timestamps — faster-whisper defaults to the lighter
+  `small.en` model with CPU int8 support; CUDA acceleration is used when available, and an installed
+  whisper.cpp/Vulkan backend can be selected for supported AMD systems.
 - **Automatic moment detection** — per-second scoring on six audio/text signals
   (energy, spike, sustain, talk-density, laughter, dynamics), tuned to favour real gameplay reactions
   over lobby chatter, snapped to sentence boundaries.
