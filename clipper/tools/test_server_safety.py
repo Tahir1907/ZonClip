@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 from pipeline import server as server_module
 from pipeline.config import Config
+from pipeline import posting
 from pipeline.server import Handler, State
 
 
@@ -110,6 +111,27 @@ class ServerSafetyTests(unittest.TestCase):
                 self.assertIn("disabled", payload["error"])
         finally:
             server_module.STATE = previous
+
+    def test_daily_upload_usage_counts_only_success_once(self):
+        previous_path = posting.STORE_PATH
+        try:
+            posting.STORE_PATH = os.path.join(self.root, "posting.json")
+            posting._save({
+                "youtube": {}, "tiktok": {}, "seq": 2,
+                "queue": [
+                    {"id": "up1", "platform": "youtube", "status": "uploading"},
+                    {"id": "up2", "platform": "tiktok", "status": "uploading"},
+                ],
+            })
+            poster = posting.Poster(Config())
+            poster._set("up1", status="uploaded", result={"video_id": "abc"})
+            poster._set("up1", status="uploaded", result={"video_id": "abc"})
+            poster._set("up2", status="uploaded", result={"publish_id": "xyz"})
+            usage = poster.state()["usage"]
+            self.assertEqual(usage["youtube_uploads"], 1)
+            self.assertEqual(usage["tiktok_uploads"], 1)
+        finally:
+            posting.STORE_PATH = previous_path
 
 
 if __name__ == "__main__":
