@@ -41,6 +41,18 @@ def _no_nan(_v):
     raise ValueError("NaN/Infinity not allowed")
 
 
+def _configured_web_origin() -> str:
+    """Return a strictly validated single web origin; never accept arbitrary CSP/header text."""
+    raw = (getattr(STATE.cfg, "web_origin", "") or "").strip().rstrip("/") if "STATE" in globals() else ""
+    if not raw:
+        return ""
+    parsed = urlparse(raw)
+    if (parsed.scheme not in ("https", "http") or not parsed.netloc or parsed.path
+            or parsed.params or parsed.query or parsed.fragment or parsed.username or parsed.password):
+        return ""
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
 # the fields that define the rendered/exported video (used for staleness + reset snapshots)
 EXPORT_FIELDS = ("segments", "captions_enabled", "caption_style", "caption_words",
                  "chat", "elements", "cam", "cam_mode")
@@ -731,8 +743,10 @@ class Handler(BaseHTTPRequestHandler):
             origin = self.headers.get("Origin")
             if origin:
                 parsed = urlparse(origin)
-                if (parsed.scheme != "http" or parsed.hostname != host
-                        or parsed.port != self.server.server_port):
+                local_origin = (parsed.scheme == "http" and parsed.hostname in allowed
+                                and parsed.port == self.server.server_port)
+                remote_origin = bool(_configured_web_origin() and origin == _configured_web_origin())
+                if not (local_origin or remote_origin):
                     return False
             return True
         except ValueError:
@@ -746,7 +760,14 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
-        for k, v in (extra or {}).items():
+        headers = dict(extra or {})
+        if ctype.startswith("text/html"):
+            web_origin = _configured_web_origin()
+            ancestors = "'self'" + (f" {web_origin}" if web_origin else "")
+            headers.setdefault("Content-Security-Policy", f"frame-ancestors {ancestors}")
+            headers.setdefault("X-Content-Type-Options", "nosniff")
+            headers.setdefault("Referrer-Policy", "no-referrer")
+        for k, v in headers.items():
             self.send_header(k, v)
         self.end_headers()
         if self.command != "HEAD":
