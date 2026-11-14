@@ -44,7 +44,7 @@ The watcher creates a session directory containing:
 - rankings/ranked_highlights_001.mp4, etc.: score-sorted compilations, split by the configured maximum duration.
 - logs/: per-segment pipeline output.
 
-The tier labels are relative to the session's detected clips. They do not claim that every moment is a highlight, and ZonClip never invents clips to fill a target.
+The queue removes strongly overlapping duplicate moments across adjacent recording segments, then assigns relative Top / Good / Ranking tiers. It does not claim that every moment is a highlight, and ZonClip never invents clips to fill a target.
 
 ## 4. Current limitations
 
