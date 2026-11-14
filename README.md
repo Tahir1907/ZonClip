@@ -83,7 +83,8 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
 `setup.ps1` creates everything under your **ClipForge home** (default `%USERPROFILE%\clipforge`) and
-installs the Python dependencies from `requirements.txt`. If you have an NVIDIA GPU it also installs the
+installs the free local dependencies from `requirements.txt`. Optional Anthropic features are kept separate in
+`requirements-ai.txt` and may incur API charges; they are not needed for clipping. If you have an NVIDIA GPU it also installs the
 CUDA wheels.
 
 Prefer to do it by hand?
