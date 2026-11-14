@@ -472,7 +472,9 @@ class Poster:
             params={"grant_type": "fb_exchange_token", "client_id": cr["app_id"],
                     "client_secret": cr["app_secret"], "fb_exchange_token": short_token})
         long_data = long_response.json()
-        user_token = long_data.get("access_token") or short_token
+        if long_response.status_code >= 400 or not long_data.get("access_token"):
+            raise RuntimeError(f"Meta long-lived token exchange failed: {long_data.get('error', long_data)}")
+        user_token = long_data["access_token"]
         pages_response = requests.get(
             f"{self.IG_GRAPH}/me/accounts", timeout=30,
             params={"fields": "id,name,access_token,instagram_business_account{id,username}",
@@ -565,7 +567,10 @@ class Poster:
                 upload_uri, data=stream, timeout=900,
                 headers={"Authorization": f"OAuth {token}", "offset": "0",
                          "file_size": str(size), "Content-Type": "application/octet-stream"})
-        upload_data = uploaded.json() if uploaded.content else {}
+        try:
+            upload_data = uploaded.json() if uploaded.content else {}
+        except ValueError:
+            upload_data = {"response": (uploaded.text or "")[:300]}
         if uploaded.status_code >= 400 or upload_data.get("success") is False:
             raise RuntimeError(f"Instagram video upload failed: {upload_data}")
         if progress_cb:
@@ -723,7 +728,7 @@ class Poster:
                                          ("quotaexceeded", "dailylimitexceeded", "quota exceeded")):
                 message = ("YouTube API quota was reached. Check the YouTube Data API quota in "
                            "Google Cloud Console, then retry this item when the limit resets. " + message[:400])
-            elif any(term in lowered for term in ("429", "rate limit", "rate_limit", "too many requests")):
+            elif any(term in lowered for term in ("429", "613", "rate limit", "rate_limit", "too many requests")):
                 message = (f"{plat.title()} rate limit was reached. Wait for the platform limit to reset, "
                            "then retry this item. " + message[:400])
             self._set(jid, status="error", error=message)
