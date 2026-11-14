@@ -193,7 +193,7 @@ class Config:
                                          # word/pause boundary so nothing is cut. Raise for more setup.
     seed_fwd_s: int = 16                 # rough end   = peak + this (let the payoff breathe)
     dedupe_gap_s: int = 90               # min spacing between picked clip centers
-    clip_count: int = 12                 # how many clips to render
+    clip_count: int = 45                 # VOD target; fewer are returned when candidates do not meet quality
     keep_for_rerank: int = 30            # candidates handed to the optional LLM
     # robust normalization references
     speech_pct: int = 60                 # percentile of voiced frames = "typical speech" ref
