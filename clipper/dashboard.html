@@ -193,6 +193,12 @@
   #home .card .cmeta{font-size:12px;color:var(--muted)}
   #home .card button{margin-top:auto}
   #home .muted{color:var(--muted);font-size:13px}
+  #home .sourcecards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  #home .sourcecard{background:linear-gradient(145deg,#1d192b,#15121f);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:9px;min-width:0}
+  #home .sourcecard.twitch{border-top:3px solid #9b7bff}#home .sourcecard.youtube{border-top:3px solid #ec6c6c}
+  #home .sourcecard h3{font-size:15px;margin:0;color:var(--cream)}#home .sourcecard p{font-size:12px;color:var(--muted);margin:0;min-height:34px}
+  #home .sourcecard button{width:100%;margin-top:2px}
+  @media(max-width:620px){#home .sourcecards{grid-template-columns:1fr}#home{padding:24px 14px}}
   #homejob{background:var(--panel);border:1px solid var(--gold);border-radius:13px;padding:18px;margin-bottom:8px;display:none}
   #homejob b{font-size:15px}
   .hbar{height:10px;border-radius:6px;background:#ffffff1f;overflow:hidden;margin:12px 0 7px}
@@ -222,6 +228,21 @@
   <h1>Clip<span class="g">Forge</span></h1>
   <p class="hsub">Pick a stream to make clips from — or reopen a batch you already made.</p>
   <div id="homejob"></div>
+  <h2>🔗 Import a video link</h2>
+  <div class="sourcecards">
+    <section class="sourcecard twitch">
+      <h3>🟣 Twitch VOD</h3>
+      <p>Paste a completed Twitch VOD link. ZonClip imports it to your PC, then starts local clipping.</p>
+      <input id="twitch-url" type="url" placeholder="https://www.twitch.tv/videos/…" autocomplete="off">
+      <button class="primary" onclick="importSource('twitch')">Import Twitch VOD →</button>
+    </section>
+    <section class="sourcecard youtube">
+      <h3>▶ YouTube video</h3>
+      <p>Paste a YouTube video link. Public videos you have permission to use can be imported for local clipping.</p>
+      <input id="youtube-url" type="url" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off">
+      <button class="primary" onclick="importSource('youtube')">Import YouTube video →</button>
+    </section>
+  </div>
   <h2>🎬 Make clips from a video</h2>
   <div id="vodlist" class="cards"></div>
   <h2>📁 Previous clip batches</h2>
@@ -324,7 +345,7 @@ async function showHome(){
   $("#home").style.display="block";$("#homejob").style.display="none";
   let lib;try{lib=await jget("/api/library");}catch(e){return;}
   const vl=$("#vodlist");vl.innerHTML="";
-  if(!(lib.vods&&lib.vods.length))vl.innerHTML='<p class="muted">No videos found — drop your stream recordings (.mp4) in your Videos folder.</p>';
+  if(!(lib.vods&&lib.vods.length))vl.innerHTML='<p class="muted">No local videos yet. Paste a Twitch VOD or YouTube video link above to import one.</p>';
   (lib.vods||[]).forEach(v=>{const c=document.createElement("div");c.className="card";
     c.innerHTML=`<div class="cname">${he(v.name)}</div><div class="cmeta">${fmtGB(v.size)} · ${fmtDate(v.mtime)}</div>`;
     const w=document.createElement("button");w.textContent="👁 Watch";w.title="Preview this VOD before clipping";w.onclick=()=>reviewVod(v.path,v.name);c.appendChild(w);
@@ -349,6 +370,32 @@ async function startJob(path,name){
     $("#hphase").textContent=s.phase||s.status||"";$("#hfill").style.width=(s.progress||0)+"%";
     if(s.status==="done"){clearInterval(iv);S.curId=null;hideHome();load();}
     else if(s.status==="error"){clearInterval(iv);$("#hphase").innerHTML='<span style="color:var(--bad)">Failed: '+he(s.error||"")+'</span>';}
+  },1200);
+}
+
+async function importSource(platform){
+  const field=$("#"+platform+"-url"),url=field.value.trim();
+  if(!url){toast("Paste a "+(platform==="twitch"?"Twitch VOD":"YouTube")+" link first");field.focus();return;}
+  const buttons=$("#home .sourcecard button");buttons.forEach(b=>b.disabled=true);
+  const hj=$("#homejob");hj.style.display="block";
+  const label=platform==="twitch"?"Twitch VOD":"YouTube video";
+  hj.innerHTML=`<b>Importing ${label}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Connecting…</div><div class="muted" style="margin-top:6px">The video is fetched to your local Videos library. Once imported, ZonClip starts its local clipping pipeline. Only import videos you own or have permission to use.</div>`;
+  hj.scrollIntoView({behavior:"smooth",block:"start"});
+  let r;
+  try{r=await jpost("/api/import_url",{platform,url});}
+  catch(e){$("#hphase").textContent="Could not start the import: "+e.message;buttons.forEach(b=>b.disabled=false);return;}
+  if(!r.job){$("#hphase").textContent="Could not import: "+(r.error||"unknown error");buttons.forEach(b=>b.disabled=false);return;}
+  const iv=setInterval(async()=>{
+    let s;try{s=await jget("/api/job/"+r.job);}catch(e){return;}
+    $("#hphase").textContent=s.phase||s.status||"";
+    $("#hfill").style.width=(s.progress||0)+"%";
+    if(s.status==="done"){
+      clearInterval(iv);field.value="";buttons.forEach(b=>b.disabled=false);
+      await startJob(s.path,s.name||label);
+    }else if(s.status==="error"){
+      clearInterval(iv);$("#hphase").innerHTML='<span style="color:var(--bad)">Import failed: '+he(s.error||"Unknown error")+'</span>';
+      buttons.forEach(b=>b.disabled=false);
+    }
   },1200);
 }
 async function openJob(dir){const r=await jpost("/api/open_job",{dir});if(r&&r.error){toast(r.error);return;}S.curId=null;hideHome();load();}

@@ -1,6 +1,7 @@
 # Core local clipping and Studio dependencies.
 # Paid/external AI integrations are intentionally kept out of the default install.
 faster-whisper>=1.2
+yt-dlp>=2025.1.15        # Import public Twitch VODs + YouTube videos from links
 numpy>=2.0
 pillow>=10
 pywebview>=6.2         # native Windows Studio window (WebView2)
