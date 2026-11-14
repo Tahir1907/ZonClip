@@ -216,10 +216,12 @@ class State:
                 and p.lower().endswith(self._VIDEO_EXT))
 
     def valid_project_dir(self, p: str) -> bool:
-        """Only open project folders inside the configured library."""
+        """Only open child project folders inside the configured library."""
         p = os.path.abspath(p or "")
-        project_file = os.path.join(p, "project.json")
-        return (self._under_library(p) and os.path.isdir(p)
+        root = os.path.realpath(os.path.abspath(self.library_root))
+        target = os.path.realpath(p)
+        project_file = os.path.join(target, "project.json")
+        return (target != root and self._under_library(target) and os.path.isdir(target)
                 and os.path.isfile(project_file) and self._under_library(project_file))
 
     def review_vod(self, p: str) -> str | None:
