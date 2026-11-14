@@ -16,7 +16,7 @@ $py = Join-Path $venv "Scripts\python.exe"
 if (-not (Test-Path $py)) {
     $created = $false
     if (Get-Command py -ErrorAction SilentlyContinue) {
-        foreach ($version in @("3.11", "3.12", "3.13", "3.14")) {
+        foreach ($version in @("3.11", "3.12")) {
             & py "-$version" -m venv $venv
             if ($LASTEXITCODE -eq 0 -and (Test-Path $py)) {
                 Write-Host "Created environment with Python $version."
@@ -37,8 +37,8 @@ if (-not (Test-Path $py)) {
 $pythonVersion = & $py -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
 if ($LASTEXITCODE -ne 0) { throw "Could not inspect the virtual environment's Python version." }
 $versionParts = $pythonVersion.Trim().Split('.')
-if ([int]$versionParts[0] -lt 3 -or ([int]$versionParts[0] -eq 3 -and [int]$versionParts[1] -lt 11)) {
-    throw "ZonClip requires Python 3.11 or newer. The existing environment uses Python $pythonVersion. Remove $venv and rerun setup after installing Python 3.11+."
+if ([int]$versionParts[0] -ne 3 -or [int]$versionParts[1] -lt 11 -or [int]$versionParts[1] -gt 12) {
+    throw "ZonClip currently targets Python 3.11 or 3.12 for dependency compatibility. The existing environment uses Python $pythonVersion. Remove $venv and rerun setup after installing Python 3.11 or 3.12."
 }
 Write-Host "Using Python $pythonVersion."
 
