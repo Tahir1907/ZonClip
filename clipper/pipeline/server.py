@@ -300,13 +300,19 @@ class State:
                 items.append({"platform": "tiktok", "clip": cid, "out_dir": self.out_dir, "mp4": mp4, "cover": cover,
                               "title": (m.get("title") or "")[:100], "caption": m.get("caption") or "",
                               "hashtags": m.get("hashtags") or [], "when": when})
+            elif plat == "instagram":
+                m = meta.get("tiktok") or meta.get("shorts") or {}
+                items.append({"platform": "instagram", "clip": cid, "out_dir": self.out_dir,
+                              "mp4": mp4, "cover": cover,
+                              "title": (m.get("title") or "")[:100], "caption": m.get("caption") or "",
+                              "hashtags": m.get("hashtags") or [], "when": when})
         return items
 
     def finish_post_approved(self, platforms, when: int, privacy: str) -> dict:
         """Post every APPROVED clip to the chosen platforms. Clips already downloaded are queued now;
         approved clips whose export is missing/stale are rendered first, then auto-posted on completion."""
         from . import jobs as jobsmod, posting
-        platforms = [p for p in (platforms or []) if p in ("youtube", "tiktok")]
+        platforms = [p for p in (platforms or []) if p in ("youtube", "tiktok", "instagram")]
         if not platforms:
             return {"error": "Pick at least one platform."}
         with self.lock:
@@ -829,6 +835,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._oauth_cb("youtube", q)
             if p == "/oauth2/tiktok/callback":
                 return self._oauth_cb("tiktok", q)
+            if p == "/oauth2/instagram/callback":
+                return self._oauth_cb("instagram", q)
         except Exception as e:  # noqa: BLE001
             return self._fail(e)
         return self._send(404, "not found", "text/plain")
@@ -898,7 +906,11 @@ class Handler(BaseHTTPRequestHandler):
                 from . import posting
                 P = posting.init(STATE.cfg)
                 plat = body.get("platform")
-                url = P.youtube_auth_url() if plat == "youtube" else P.tiktok_auth_url()
+                auth_urls = {"youtube": P.youtube_auth_url, "tiktok": P.tiktok_auth_url,
+                             "instagram": P.instagram_auth_url}
+                if plat not in auth_urls:
+                    return self._json({"error": "Unknown posting platform."}, 400)
+                url = auth_urls[plat]()
                 _open_browser(url)                     # consent opens in the user's real browser
                 return self._json({"ok": True, "auth_url": url})
             if p == "/api/posting/disconnect":
@@ -1079,8 +1091,12 @@ class Handler(BaseHTTPRequestHandler):
             state = (q.get("state") or [None])[0]
             if platform == "youtube":
                 P.youtube_callback(code, state)
-            else:
+            elif platform == "tiktok":
                 P.tiktok_callback(code, state)
+            elif platform == "instagram":
+                P.instagram_callback(code, state)
+            else:
+                raise RuntimeError("Unknown OAuth platform.")
             head, msg = "✓ Connected", "You can close this tab and return to ZonClip."
         except Exception as e:  # noqa: BLE001
             head, msg = "Connection failed", str(e)
@@ -1097,7 +1113,7 @@ class Handler(BaseHTTPRequestHandler):
         if not STATE.active:
             return self._json({"error": "Open a clip batch first."}, 400)
         cid = body.get("clip") or ""
-        platforms = [p for p in (body.get("platforms") or []) if p in ("youtube", "tiktok")]
+        platforms = [p for p in (body.get("platforms") or []) if p in ("youtube", "tiktok", "instagram")]
         if not platforms:
             return self._json({"error": "Pick at least one platform."}, 400)
         try:
