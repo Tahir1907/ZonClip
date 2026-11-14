@@ -1,6 +1,6 @@
 # ZonClip Studio — app & CLI reference
 
-Turn a Twitch VOD into ready-to-post **vertical clips** for TikTok and YouTube Shorts — then review and
+Turn a Twitch VOD into ready-to-post **vertical clips** for TikTok, YouTube Shorts, and Instagram Reels — then review and
 fine-tune every one in a local editor, and post or schedule them without leaving the app.
 
 > **New here? Start with the [repository README](../README.md)** for install + a quick tour, and
@@ -11,7 +11,7 @@ It transcribes the stream, finds your most clippable moments, and renders each a
 **facecam on top, gameplay on the bottom, animated word-by-word captions, a follow watermark, and a hook
 titlecard.** The **Studio** then lets you trim, restyle captions, add text/shapes/emojis/images, drop in
 a chat screenshot, splice in more of the stream, write viral titles with AI, approve, batch-render, and
-post — with video processing kept local. Clips use the raw clip audio (no added music), so they're safe to post as-is.
+post to YouTube, TikTok, and eligible Instagram professional accounts — with video processing kept local. Clips use the raw clip audio (no added music), so they're safe to post as-is.
 
 ---
 
