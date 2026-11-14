@@ -69,6 +69,7 @@ def _load() -> dict:
         d = {}
     d.setdefault("youtube", {})
     d.setdefault("tiktok", {})
+    d.setdefault("instagram", {})
     d.setdefault("queue", [])
     d.setdefault("seq", 0)
     d.setdefault("daily_usage", {})
@@ -91,6 +92,7 @@ class Poster:
         self.cfg = cfg
         self._pending_yt: dict = {}        # state -> google flow (in-flight connect)
         self._pending_tt: dict = {}        # state -> pkce code_verifier
+        self._pending_ig: set = set()       # one-time OAuth CSRF states
         self._wake = threading.Event()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
@@ -125,7 +127,7 @@ class Poster:
     def state(self) -> dict:
         with _LOCK:
             d = _load()
-        yt, tt = d["youtube"], d["tiktok"]
+        yt, tt, ig = d["youtube"], d["tiktok"], d["instagram"]
         q = [{k: it.get(k) for k in ("id", "platform", "clip", "title", "when",
                                      "status", "progress", "error", "result")}
              for it in d["queue"][-60:]]
@@ -134,15 +136,20 @@ class Poster:
         usage = (d.get("daily_usage") or {}).get(today) or {}
         return {
             "usage": {"date": today, "youtube_uploads": int(usage.get("youtube", 0)),
-                      "tiktok_uploads": int(usage.get("tiktok", 0))},
+                      "tiktok_uploads": int(usage.get("tiktok", 0)),
+                      "instagram_uploads": int(usage.get("instagram", 0))},
             "youtube": {"configured": bool(yt.get("client_id") and yt.get("client_secret")),
                         "connected": bool(yt.get("refresh_token")),
                         "channel": yt.get("channel", "")},
             "tiktok": {"configured": bool(tt.get("client_key") and tt.get("client_secret")),
                        "connected": bool(tt.get("access_token")),
                        "handle": tt.get("handle", "")},
+            "instagram": {"configured": bool(ig.get("app_id") and ig.get("app_secret")),
+                          "connected": bool(ig.get("page_access_token") and ig.get("ig_user_id")),
+                          "username": ig.get("username", ""), "page": ig.get("page_name", "")},
             "queue": q,
-            "redirect": {"youtube": self._redirect("youtube"), "tiktok": self._redirect("tiktok")},
+            "redirect": {"youtube": self._redirect("youtube"), "tiktok": self._redirect("tiktok"),
+                         "instagram": self._redirect("instagram")},
         }
 
     def save_creds(self, platform: str, body: dict) -> None:
@@ -154,13 +161,20 @@ class Poster:
             elif platform == "tiktok":
                 d["tiktok"]["client_key"] = (body.get("client_key") or "").strip()
                 d["tiktok"]["client_secret"] = (body.get("client_secret") or "").strip()
+            elif platform == "instagram":
+                d["instagram"]["app_id"] = (body.get("app_id") or "").strip()
+                d["instagram"]["app_secret"] = (body.get("app_secret") or "").strip()
             else:
                 raise RuntimeError("unknown platform")
             _save(d)
 
     def disconnect(self, platform: str) -> None:
         """Forget tokens (keep the client id/secret so reconnecting is one click)."""
-        keep = ("client_id", "client_secret") if platform == "youtube" else ("client_key", "client_secret")
+        keep = (("client_id", "client_secret") if platform == "youtube" else
+                ("client_key", "client_secret") if platform == "tiktok" else
+                ("app_id", "app_secret") if platform == "instagram" else ())
+        if not keep:
+            raise RuntimeError("unknown platform")
         with _LOCK:
             d = _load()
             cur = d.get(platform) or {}
@@ -416,6 +430,181 @@ class Poster:
         return {"publish_id": publish_id, "where": "TikTok inbox"}
 
     # =======================================================================
+    # Instagram Reels (Facebook Login for Business; resumable upload)
+    # =======================================================================
+    IG_VERSION = "v27.0"
+    IG_GRAPH = f"https://graph.facebook.com/{IG_VERSION}"
+    IG_AUTH = f"https://www.facebook.com/{IG_VERSION}/dialog/oauth"
+
+    def instagram_auth_url(self) -> str:
+        cr = self._creds("instagram")
+        if not (cr.get("app_id") and cr.get("app_secret")):
+            raise RuntimeError("Add your Meta App ID + App Secret first (Connections ▸ Instagram).")
+        state = secrets.token_urlsafe(32)
+        self._pending_ig.add(state)
+        q = {
+            "client_id": cr["app_id"], "redirect_uri": self._redirect("instagram"),
+            "response_type": "code",
+            "scope": "instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement",
+            "state": state,
+        }
+        return self.IG_AUTH + "?" + urllib.parse.urlencode(q)
+
+    def instagram_callback(self, code: str, state: str) -> None:
+        import requests
+        if not state or state not in self._pending_ig:
+            raise RuntimeError("Instagram sign-in expired or state did not match. Connect again.")
+        self._pending_ig.remove(state)
+        if not code:
+            raise RuntimeError("No Instagram authorization code returned.")
+        cr = self._creds("instagram")
+        redirect = self._redirect("instagram")
+        token_response = requests.get(
+            f"{self.IG_GRAPH}/oauth/access_token", timeout=30,
+            params={"client_id": cr["app_id"], "client_secret": cr["app_secret"],
+                    "redirect_uri": redirect, "code": code})
+        token_data = token_response.json()
+        if token_response.status_code >= 400 or not token_data.get("access_token"):
+            raise RuntimeError(f"Meta token exchange failed: {token_data.get('error', token_data)}")
+        short_token = token_data["access_token"]
+        long_response = requests.get(
+            f"{self.IG_GRAPH}/oauth/access_token", timeout=30,
+            params={"grant_type": "fb_exchange_token", "client_id": cr["app_id"],
+                    "client_secret": cr["app_secret"], "fb_exchange_token": short_token})
+        long_data = long_response.json()
+        user_token = long_data.get("access_token") or short_token
+        pages_response = requests.get(
+            f"{self.IG_GRAPH}/me/accounts", timeout=30,
+            params={"fields": "id,name,access_token,instagram_business_account{id,username}",
+                    "access_token": user_token})
+        pages_data = pages_response.json()
+        if pages_response.status_code >= 400:
+            raise RuntimeError(f"Meta could not list Pages: {pages_data.get('error', pages_data)}")
+        linked = [page for page in pages_data.get("data", [])
+                  if (page.get("instagram_business_account") or {}).get("id") and page.get("access_token")]
+        if not linked:
+            raise RuntimeError(
+                "No linked Instagram professional account was found. Connect an Instagram Business/Creator "
+                "account to a Facebook Page, then grant the requested Meta permissions and connect again.")
+        if len(linked) > 1:
+            raise RuntimeError(
+                "More than one Page has a linked Instagram professional account. Disconnect or remove "
+                "unused Page access so only the intended account is granted to this app, then reconnect.")
+        page = linked[0]
+        account = page["instagram_business_account"]
+        with _LOCK:
+            d = _load()
+            d["instagram"].update({
+                "user_access_token": user_token,
+                "page_access_token": page["access_token"],
+                "ig_user_id": account["id"],
+                "username": account.get("username", ""),
+                "page_id": page["id"], "page_name": page.get("name", ""),
+                "expires_at": int(time.time()) + int(long_data.get("expires_in", token_data.get("expires_in", 0)) or 0),
+            })
+            _save(d)
+        log(f"[posting] Instagram connected: @{account.get('username') or account['id']}")
+
+    def _instagram_credentials(self) -> dict:
+        with _LOCK:
+            ig = dict(_load()["instagram"])
+        if not ig.get("page_access_token") or not ig.get("ig_user_id"):
+            raise RuntimeError("Instagram isn't connected yet.")
+        if ig.get("expires_at") and int(ig["expires_at"]) < int(time.time()) + 60:
+            raise RuntimeError("Instagram access token is expired or near expiry. Disconnect and reconnect Instagram.")
+        return ig
+
+    def instagram_upload(self, item: dict, progress_cb=None) -> dict:
+        import requests
+        path = item.get("mp4") or ""
+        if not os.path.isfile(path):
+            raise RuntimeError("The Instagram Reel file is missing.")
+        size = os.path.getsize(path)
+        if size <= 0 or size > 1024 * 1024 * 1024:
+            raise RuntimeError("Instagram Reels must be a non-empty file no larger than 1 GB.")
+        try:
+            duration = __import__("pipeline.util", fromlist=["probe_duration"]).probe_duration(path)
+        except Exception:
+            duration = 0
+        if duration and not (3 <= duration <= 900):
+            raise RuntimeError("Instagram Reels must be between 3 seconds and 15 minutes.")
+        ig = self._instagram_credentials()
+        token, ig_id = ig["page_access_token"], ig["ig_user_id"]
+        caption = (item.get("caption") or "").strip()
+        hashtags = [str(x).lstrip("#") for x in (item.get("hashtags") or []) if str(x).strip()]
+        if hashtags:
+            caption = (caption + "\n\n" + " ".join("#" + x for x in hashtags)).strip()
+        caption = caption[:2200]
+
+        # Ask Meta for its live quota state before starting a new publish operation.
+        quota = requests.get(f"{self.IG_GRAPH}/{ig_id}/content_publishing_limit", timeout=30,
+                             params={"access_token": token})
+        quota_data = quota.json()
+        if quota.status_code >= 400:
+            raise RuntimeError(f"Instagram quota check failed: {quota_data.get('error', quota_data)}")
+        quota_rows = quota_data.get("data") or []
+        if quota_rows:
+            row = quota_rows[0]
+            usage = row.get("quota_usage")
+            config_data = row.get("config") or {}
+            total = config_data.get("quota_total")
+            if usage is not None and total is not None and int(usage) >= int(total):
+                raise RuntimeError("Instagram's current publishing quota is full. Wait for its rolling window to reset.")
+
+        create = requests.post(
+            f"{self.IG_GRAPH}/{ig_id}/media", timeout=60,
+            data={"media_type": "REELS", "upload_type": "resumable",
+                  "caption": caption, "share_to_feed": "true", "access_token": token})
+        created = create.json()
+        if create.status_code >= 400 or not created.get("id") or not created.get("uri"):
+            raise RuntimeError(f"Instagram Reel container creation failed: {created.get('error', created)}")
+        container_id, upload_uri = created["id"], created["uri"]
+
+        with open(path, "rb") as stream:
+            uploaded = requests.post(
+                upload_uri, data=stream, timeout=900,
+                headers={"Authorization": f"OAuth {token}", "offset": "0",
+                         "file_size": str(size), "Content-Type": "application/octet-stream"})
+        upload_data = uploaded.json() if uploaded.content else {}
+        if uploaded.status_code >= 400 or upload_data.get("success") is False:
+            raise RuntimeError(f"Instagram video upload failed: {upload_data}")
+        if progress_cb:
+            progress_cb(0.75)
+
+        deadline = time.time() + 900
+        status = "IN_PROGRESS"
+        while time.time() < deadline:
+            poll = requests.get(f"{self.IG_GRAPH}/{container_id}", timeout=30,
+                                params={"fields": "status_code,status", "access_token": token})
+            poll_data = poll.json()
+            if poll.status_code >= 400:
+                raise RuntimeError(f"Instagram processing check failed: {poll_data.get('error', poll_data)}")
+            status = poll_data.get("status_code") or poll_data.get("status") or "IN_PROGRESS"
+            if status == "FINISHED":
+                break
+            if status in ("ERROR", "EXPIRED"):
+                raise RuntimeError(f"Instagram could not process this Reel (container status: {status}).")
+            time.sleep(5)
+        if status != "FINISHED":
+            raise RuntimeError("Instagram is still processing this Reel after 15 minutes. It was not published; retry later.")
+        if progress_cb:
+            progress_cb(0.9)
+        publish = requests.post(
+            f"{self.IG_GRAPH}/{ig_id}/media_publish", timeout=60,
+            data={"creation_id": container_id, "access_token": token})
+        published = publish.json()
+        if publish.status_code >= 400 or not published.get("id"):
+            raise RuntimeError(f"Instagram publish failed: {published.get('error', published)}")
+        media_id = published["id"]
+        details = requests.get(f"{self.IG_GRAPH}/{media_id}", timeout=30,
+                               params={"fields": "permalink", "access_token": token})
+        detail_data = details.json()
+        permalink = detail_data.get("permalink") if details.status_code < 400 else None
+        if progress_cb:
+            progress_cb(1.0)
+        return {"media_id": media_id, "url": permalink or "https://www.instagram.com/", "where": "Instagram Reels"}
+
+    # =======================================================================
     # Queue + scheduler
     # =======================================================================
     def enqueue(self, items: list) -> list:
@@ -461,9 +650,9 @@ class Poster:
                     if kw.get("status") == "uploaded" and it.get("status") != "uploaded":
                         day = time.strftime("%Y-%m-%d")
                         usage = d.setdefault("daily_usage", {}).setdefault(
-                            day, {"youtube": 0, "tiktok": 0})
+                            day, {"youtube": 0, "tiktok": 0, "instagram": 0})
                         plat = it.get("platform")
-                        if plat in ("youtube", "tiktok"):
+                        if plat in ("youtube", "tiktok", "instagram"):
                             usage[plat] = int(usage.get(plat, 0)) + 1
                         # Keep a month of local counters; these are activity counts, not provider quota units.
                         for old_day in sorted(d["daily_usage"])[:-31]:
@@ -512,7 +701,14 @@ class Poster:
         try:
             if not os.path.exists(it.get("mp4") or ""):
                 raise RuntimeError("the clip file is gone — re-download it, then post again.")
-            res = self.youtube_upload(it, pcb) if plat == "youtube" else self.tiktok_upload(it, pcb)
+            if plat == "youtube":
+                res = self.youtube_upload(it, pcb)
+            elif plat == "tiktok":
+                res = self.tiktok_upload(it, pcb)
+            elif plat == "instagram":
+                res = self.instagram_upload(it, pcb)
+            else:
+                raise RuntimeError(f"Unsupported posting platform: {plat}")
             self._set(jid, status="uploaded", result=res, error="", progress=100)
             log(f"[posting] {plat} upload done for {it.get('clip')} -> {res}")
             if self.on_uploaded:
