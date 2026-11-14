@@ -229,3 +229,10 @@ platform's terms.
 The current release is a **local Windows VOD application**. Continuous live-stream capture, dynamic live highlight queues, automatic ranking/compilation videos, Instagram publishing, and a Vercel-hosted web dashboard with a secure local processing agent are not implemented yet. YouTube and TikTok posting are supported in the existing semi-automated flows described above.
 
 See [the Windows test plan](docs/TEST_PLAN.md) before running your first test.
+
+## Live clipping
+
+ZonClip can watch completed OBS recording segments and process them continuously into a session-wide, unlimited highlight queue. It also builds ranked compilation parts when the session is stopped. This uses local recording files and the existing VOD pipeline; it does not ingest a remote stream URL directly.
+
+See [Live mode setup](docs/LIVE_MODE.md) for OBS configuration, commands, outputs, and current limitations.
+
