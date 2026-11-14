@@ -231,6 +231,7 @@ class Config:
 
     # ---- dashboard ----
     dash_port: int = 8765
+    web_origin: str = ""                  # exact Vercel/custom origin allowed to frame the local Studio
 
     # ---- trends: optional "what's hot now" list injected into the caption prompt (see rerank._trends).
     # Blank falls back to <LOCAL_ROOT>/trends.json, then the seed bundled with the package. ----
