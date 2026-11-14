@@ -23,6 +23,16 @@ jobs:
       - name: Install core dependencies
         working-directory: clipper
         run: python -m pip install -r requirements.txt
+      - name: Validate PowerShell setup syntax
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path "clipper/setup.ps1"), [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | Format-List
+            exit 1
+          }
       - name: Compile Python sources
         run: python -m compileall -q clipper
       - name: Run server safety regression tests
