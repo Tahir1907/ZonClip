@@ -35,6 +35,9 @@ jobs:
           }
       - name: Compile Python sources
         run: python -m compileall -q clipper
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Validate Studio JavaScript
         shell: pwsh
         working-directory: clipper
