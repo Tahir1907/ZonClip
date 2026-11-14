@@ -240,3 +240,8 @@ See [Live mode setup](docs/LIVE_MODE.md) for OBS configuration, commands, output
 
 ZonClip includes an official Meta Instagram Reels publishing integration using the Facebook Login resumable upload flow. It requires an eligible Business/Creator account linked to a Facebook Page, Meta app credentials, and the permissions/access Meta grants. See [Instagram setup](docs/INSTAGRAM_SETUP.md) before connecting an account.
 
+
+
+## Vercel web dashboard shell
+
+The web/ folder contains a static Vercel-hostable shell that embeds the existing local Studio. It keeps video processing and credentials on the Windows PC; it is not a cloud renderer or cross-device remote agent. See [Vercel setup and security](docs/WEB_DASHBOARD.md).
