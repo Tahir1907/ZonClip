@@ -26,11 +26,18 @@ if (-not (Test-Path $py)) {
         }
     }
     if (-not $created -and (Get-Command python -ErrorAction SilentlyContinue)) {
-        & python -m venv $venv
-        if ($LASTEXITCODE -eq 0 -and (Test-Path $py)) { $created = $true }
+        # Do not create a broken environment with whichever Python happens to be
+        # first on PATH (for example 3.13/3.14 when this app targets 3.11/3.12).
+        $pathPythonVersion = & python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+        if ($LASTEXITCODE -eq 0 -and $pathPythonVersion.Trim() -in @("3.11", "3.12")) {
+            & python -m venv $venv
+            if ($LASTEXITCODE -eq 0 -and (Test-Path $py)) { $created = $true }
+        } else {
+            Write-Host "Skipping PATH Python $($pathPythonVersion.Trim()); ZonClip requires Python 3.11 or 3.12."
+        }
     }
     if (-not $created) {
-        throw "Could not create the virtual environment. Install Python 3.11 or newer, then rerun setup."
+        throw "Could not create the virtual environment. Install Python 3.11 or 3.12 (64-bit), then rerun setup. The Python Launcher can manage multiple versions; verify with: py -0p."
     }
 }
 
