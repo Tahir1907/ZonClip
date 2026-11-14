@@ -987,6 +987,8 @@ class Handler(BaseHTTPRequestHandler):
         return self._json({"ok": True, "clip": snapshot})
 
     def _clean_captions(self, cid):
+        if not (STATE.cfg.ai_enabled and util.get_api_key()):
+            return self._json({"error": "Optional paid AI is disabled or no API key is configured."}, 403)
         from . import ai_edit
         with STATE.lock:
             c = STATE.find(cid)
@@ -1011,6 +1013,8 @@ class Handler(BaseHTTPRequestHandler):
         return self._json({"ok": True, "count": len(cleaned), "words": cleaned})
 
     def _ai(self, cid, body):
+        if not (STATE.cfg.ai_enabled and util.get_api_key()):
+            return self._json({"error": "Optional paid AI is disabled or no API key is configured."}, 403)
         from . import ai_edit
         with STATE.lock:
             c = STATE.find(cid)
@@ -1043,6 +1047,8 @@ class Handler(BaseHTTPRequestHandler):
         return self._json({"ok": True, "changes": changes, "clip": snapshot, "job": job})
 
     def _ai_titles(self):
+        if not (STATE.cfg.ai_enabled and util.get_api_key()):
+            return self._json({"error": "Optional paid AI is disabled or no API key is configured."}, 403)
         from . import rerank
         with STATE.lock:
             snap = [{"id": c["id"], "keywords": c.get("keywords", []),
