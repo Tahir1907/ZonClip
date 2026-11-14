@@ -53,6 +53,23 @@ class ServerSafetyTests(unittest.TestCase):
                 stream.write("{}")
             self.assertFalse(self.state.valid_project_dir(outside))
 
+    def test_rejects_library_root_as_project_folder(self):
+        with open(os.path.join(self.root, "project.json"), "w", encoding="utf-8") as stream:
+            stream.write("{}")
+        self.assertFalse(self.state.valid_project_dir(self.root))
+
+    def test_rejects_symlink_to_video_outside_library(self):
+        with tempfile.TemporaryDirectory() as outside:
+            target = os.path.join(outside, "outside.mp4")
+            with open(target, "wb") as stream:
+                stream.write(b"video")
+            link = os.path.join(self.root, "linked.mp4")
+            try:
+                os.symlink(target, link)
+            except (OSError, NotImplementedError):
+                self.skipTest("Symlink creation is unavailable on this runner")
+            self.assertFalse(self.state.valid_vod(link))
+
     def _handler(self, host, origin=None):
         handler = Handler.__new__(Handler)
         handler.headers = {"Host": host}
