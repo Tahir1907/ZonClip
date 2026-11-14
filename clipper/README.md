@@ -36,7 +36,7 @@ $env:PYTHONPATH = (Get-Location)
 & "$env:USERPROFILE\clipforge\.venv\Scripts\python.exe" clip.py "C:\path\to\your-vod.mp4"
 ```
 
-`clip.py` writes the clips + a `project.json` to `"<vod> - clips\"`. Options: `--count N` ·
+`clip.py` writes the clips + a `project.json` to `"<vod> - clips\"`. Options: `--count N` (default 45) · `--ranking-group-size N` (default 3) · `--no-rankings` ·
 `--ai` (optional paid Claude ranking + titles; off by default) · `--limit-secs 900` (fast test on first 15 min) · `--dry-run`
 (detect only) · `--dashboard` (render then open the Studio).
 
