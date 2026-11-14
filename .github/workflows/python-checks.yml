@@ -35,6 +35,13 @@ jobs:
           }
       - name: Compile Python sources
         run: python -m compileall -q clipper
+      - name: Validate Studio JavaScript
+        shell: pwsh
+        working-directory: clipper
+        run: |
+          python -c "from pathlib import Path; import re; html=Path('dashboard.html').read_text(encoding='utf-8'); scripts=re.findall(r'<script>(.*?)</script>', html, re.S); assert scripts, 'No dashboard script found'; Path('dashboard.check.js').write_text('\n'.join(scripts), encoding='utf-8')"
+          node --check dashboard.check.js
+          Remove-Item dashboard.check.js
       - name: Run server safety regression tests
         working-directory: clipper
         run: python -m unittest discover -s tools -p "test_server_safety.py" -v
