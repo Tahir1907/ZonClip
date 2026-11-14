@@ -1071,10 +1071,10 @@ class Handler(BaseHTTPRequestHandler):
                 P.youtube_callback(code, state)
             else:
                 P.tiktok_callback(code, state)
-            head, msg = "✓ Connected", "You can close this tab and return to ClipForge."
+            head, msg = "✓ Connected", "You can close this tab and return to ZonClip."
         except Exception as e:  # noqa: BLE001
             head, msg = "Connection failed", str(e)
-        page = ("<!doctype html><meta charset=utf-8><title>ClipForge</title>"
+        page = ("<!doctype html><meta charset=utf-8><title>ZonClip</title>"
                 "<body style='font-family:Segoe UI,system-ui,sans-serif;background:#0d0b14;color:#f6f3ec;"
                 "display:flex;align-items:center;justify-content:center;height:100vh;margin:0'>"
                 f"<div style='text-align:center;max-width:420px;padding:20px'><h2 style='color:#E7C58A;margin:0 0 8px'>{head}</h2>"
@@ -1422,18 +1422,18 @@ def app_window(url: str):
 
 def _set_app_id():
     """Give the process its own Windows taskbar identity (icon + grouping) so ClipForge shows up as
-    ClipForge — not grouped under python.exe or Edge."""
+    ZonClip — not grouped under python.exe or Edge."""
     if sys.platform == "win32":
         try:
             import ctypes
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ClipForge.Studio")
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ZonClip.Studio")
         except Exception:  # noqa: BLE001
             pass
 
 
 def _run_webview(url: str) -> bool:
     """Open ClipForge in a true NATIVE window (pywebview over the Windows WebView2 runtime): no
-    browser chrome, no Edge identity in the taskbar, just a ClipForge-branded desktop window. Blocks
+    browser chrome, no Edge identity in the taskbar, just a ZonClip-branded desktop window. Blocks
     until the user closes it. Returns True if it ran, False if pywebview/WebView2 isn't available (so
     the caller can fall back)."""
     try:
@@ -1443,7 +1443,7 @@ def _run_webview(url: str) -> bool:
     _set_app_id()
     icon = os.path.join(config.LOCAL_ROOT, "ClipForge.ico")
     try:
-        webview.create_window("ClipForge Studio", url, width=1320, height=900, min_size=(900, 640))
+        webview.create_window("ZonClip Studio", url, width=1320, height=900, min_size=(900, 640))
         webview.start(icon=icon if os.path.exists(icon) else None)
         return True
     except Exception as e:  # noqa: BLE001  (no WebView2 runtime, GUI init failure, ...)
