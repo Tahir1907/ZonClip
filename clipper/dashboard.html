@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ClipForge Studio</title>
+<title>ZonClip Studio</title>
 <link rel="icon" type="image/png" href="/icon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <style>
@@ -206,7 +206,7 @@
   <div class="sub" id="vodinfo"></div><div class="spacer"></div>
   <span id="savechip" class="savechip saved">Saved</span>
   <div id="keybox" class="row" style="display:none;width:auto"><input id="apikey" type="password" placeholder="Anthropic API key" style="width:180px"><button onclick="saveKey()">Enable AI</button></div>
-  <span class="chip" id="aistat"></span><button onclick="showHome()" title="Pick a different VOD or batch">🏠 Home</button><button onclick="location.href='/longform'" title="Turn this VOD into 20–90 min YouTube videos">🎬 Long-form</button><button onclick="openConn()" title="Connect TikTok / YouTube and see scheduled posts">🚀 Posting</button><button onclick="load()" title="Re-fetch clips (after Claude Code edits)">↻ Reload</button><button onclick="showHelp()">? Help</button><button onclick="quitApp()" title="Stop ClipForge">⏻ Quit</button>
+  <span class="chip" id="aistat"></span><button onclick="showHome()" title="Pick a different VOD or batch">🏠 Home</button><button onclick="location.href='/longform'" title="Turn this VOD into 20–90 min YouTube videos">🎬 Long-form</button><button onclick="openConn()" title="Connect TikTok / YouTube and see scheduled posts">🚀 Posting</button><button onclick="load()" title="Re-fetch clips (after local project edits)">↻ Reload</button><button onclick="showHelp()">? Help</button><button onclick="quitApp()" title="Stop ZonClip">⏻ Quit</button>
 </header>
 <div id="app">
   <aside id="cliplist"><div id="filters"></div><div id="clips"></div>
@@ -217,7 +217,7 @@
 </div>
 <div class="toast" id="toast"></div>
 <div id="home"><div class="hwrap">
-  <button onclick="quitApp()" title="Stop ClipForge" style="float:right;margin-top:6px">⏻ Quit</button>
+  <button onclick="quitApp()" title="Stop ZonClip" style="float:right;margin-top:6px">⏻ Quit</button>
   <button onclick="openConn()" title="Connect TikTok / YouTube and see scheduled posts" style="float:right;margin:6px 8px 0 0">🚀 Posting</button>
   <h1>Clip<span class="g">Forge</span></h1>
   <p class="hsub">Pick a stream to make clips from — or reopen a batch you already made.</p>
@@ -1054,9 +1054,9 @@ addEventListener("keydown",e=>{if(/input|textarea|select/i.test(e.target.tagName
 function navClip(d){const vis=S.clips.filter(c=>S.filter==="all"||statusOf(c)===S.filter);if(!vis.length)return;
   const i=vis.findIndex(c=>c.id===S.curId);const n=vis[((i<0?0:i)+d+vis.length)%vis.length];if(n)selectClip(n.id);}
 function showHelp(){$("#help").style.display="flex";}
-async function quitApp(){if(!confirm("Quit ClipForge? Any saved clips stay in your folders."))return;
+async function quitApp(){if(!confirm("Quit ZonClip? Any saved clips stay in your folders."))return;
   try{await jpost("/api/shutdown",{});}catch(e){}
-  document.body.innerHTML='<div style="display:flex;flex-direction:column;gap:8px;height:100vh;align-items:center;justify-content:center;color:#9a93b0;font-family:Poppins,system-ui,sans-serif;text-align:center"><div style="font-size:34px;font-weight:800;color:#E7C58A">ClipForge</div><div>Stopped — you can close this tab.</div></div>';}
+  document.body.innerHTML='<div style="display:flex;flex-direction:column;gap:8px;height:100vh;align-items:center;justify-content:center;color:#9a93b0;font-family:Poppins,system-ui,sans-serif;text-align:center"><div style="font-size:34px;font-weight:800;color:#E7C58A">ZonClip</div><div>Stopped — you can close this tab.</div></div>';}
 window.addEventListener("resize",()=>{if(cur()){renderStage();}});
 load();
 </script>
