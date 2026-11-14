@@ -28,7 +28,8 @@ If setup fails, save the full PowerShell error text. Do not delete the existing 
 2. For a small first run, use the CLI from the `clipper` folder with `clip.py "<path-to-video>" --count 2 --limit-secs 300`. To test from the Home screen instead, set `"clip_count": 2` in your local `config.json` before launching; the Home screen currently uses the configured default count.
 3. Wait for transcription, highlight detection, and rendering to finish.
 4. Confirm the new `<recording name> - clips` folder contains `project.json` and rendered MP4 previews.
-5. Open the project in the Studio and play each generated clip.
+5. Confirm the `rankings` subfolder contains score-sorted compilation MP4s and `ranking_manifest.json` (unless you used `--no-rankings`).
+6. Open the project in the Studio and play each generated clip.
 
 Expected: processing works without an Anthropic API key. The default transcription model is `small.en`; the first run downloads it and later runs use the local cache.
 
