@@ -870,16 +870,17 @@ function capSect(c){const st=c.caption_style||{};
     <label>Position (from bottom)</label><input id="capPos" type="range" min="200" max="1200" step="20" value="${st.margin_v||520}">
     <div class="row" style="margin-top:6px"><button class="sm primary" onclick="cleanCaptions()" ${S.ai?'':'disabled'} title="AI fixes stutters, filler & mis-hears and keeps the timing in sync">✨ AI clean up</button><button class="sm" onclick="openWords()">Fix words…</button></div>
     <button class="sm" style="margin-top:5px;width:100%" onclick="applyCapStyle()">Apply caption style</button><div id="wordbox" style="margin-top:8px"></div>`);}
-const PLAT_LABEL={tiktok:"TikTok",shorts:"YouTube Shorts"};
+const PLAT_LABEL={tiktok:"TikTok",shorts:"YouTube Shorts",instagram:"Instagram Reels"};
 function postSect(c){let b="";PLATFORMS.forEach(p=>{const m=(c.metadata&&c.metadata[p])||{title:"",caption:"",hashtags:[]};
   b+=`<div style="border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:8px"><div class="row"><b style="text-transform:uppercase;font-size:11px">${PLAT_LABEL[p]||p}</b><span class="spacer"></span><button class="sm lav" onclick="copyMeta('${p}')">Copy</button></div>
     <label>Title</label><input data-meta="${p}.title" value="${(m.title||'').replace(/"/g,'&quot;')}"><label>Caption</label><textarea data-meta="${p}.caption">${m.caption||''}</textarea><label>Hashtags</label><input data-meta="${p}.hashtags" value="${(m.hashtags||[]).join(' ')}"></div>`;});
   b+=postActions(c);
   return sect("post","Post / schedule",b);}
-function postActions(c){const ps=S.posting||{},yt=ps.youtube||{},tt=ps.tiktok||{};
-  const anyConn=yt.connected||tt.connected;
+function postActions(c){const ps=S.posting||{},yt=ps.youtube||{},tt=ps.tiktok||{},ig=ps.instagram||{};
+  const anyConn=yt.connected||tt.connected||ig.connected;
   const ytlab=yt.connected?("YouTube"+(yt.channel?" · "+he(yt.channel):"")):"YouTube — not connected";
   const ttlab=tt.connected?("TikTok"+(tt.handle?" · "+he(tt.handle):"")):"TikTok — not connected";
+  const iglab=ig.connected?("Instagram"+(ig.username?" · @"+he(ig.username):"")):"Instagram — not connected";
   const stale=(!c.export_exists||c.export_stale);
   let b='<div class="postbox">';
   if(c.posted&&Object.keys(c.posted).length){
@@ -891,10 +892,11 @@ function postActions(c){const ps=S.posting||{},yt=ps.youtube||{},tt=ps.tiktok||{
   if(yt.connected)b+=`<div class="row" style="margin:0 0 2px 25px"><span class="sub">Visibility</span><select id="pPriv" style="width:auto"><option value="public">Public</option><option value="unlisted">Unlisted</option><option value="private">Private</option></select></div>
     <div class="sub" style="margin:0 0 6px 25px;font-size:11px;line-height:1.4">Unverified Google projects upload as <b>Private</b> regardless — publish in YouTube Studio. This setting only takes effect once your project passes Google's audit.</div>`;
   b+=`<label class="pchk"><input type="checkbox" id="pTiktok" ${tt.connected?"checked":"disabled"}> 🎵 ${ttlab} <span class="sub">→ inbox</span></label>`;
+  b+=`<label class="pchk"><input type="checkbox" id="pInstagram" ${ig.connected?"checked":"disabled"}> 📸 ${iglab} <span class="sub">→ Reels</span></label>`;
   b+=`<label class="pchk" style="margin-top:7px"><input type="checkbox" id="pSched" onchange="$('#pWhen').style.display=this.checked?'block':'none'"> 🕒 Schedule for later</label><input type="datetime-local" id="pWhen" style="display:none">`;
   b+=`<div class="row" style="margin-top:9px"><button class="sm primary" onclick="postClip()">🚀 Post / schedule</button><button class="sm" onclick="openConn()">⚙ Manage</button></div>`;
   if(stale)b+=`<div class="sub" style="margin-top:7px;color:var(--pending)">⬇ Download this clip first — posting uploads the finished file.</div>`;
-  b+=`<div class="sub" style="margin-top:7px">YouTube uploads to your channel (unverified API projects land <b>Private</b> — flip to Public in Studio). TikTok goes to your <b>inbox</b> — open the app and tap the notification to add a caption &amp; post.</div></div>`;
+  b+=`<div class="sub" style="margin-top:7px">YouTube uploads to your channel (unverified API projects land <b>Private</b> — flip to Public in Studio). TikTok goes to your <b>inbox</b>. Instagram Reels publish through Meta's official API after account and app permissions are approved.</div></div>`;
   return b;}
 function aiSect(c){let b=`<label>Optional AI editing (external API)</label><textarea id="aiInst" placeholder="e.g. start where I first spot the prop; punchier captions"></textarea><button class="sm primary" style="margin-top:6px" onclick="aiEdit()" ${S.ai?'':'disabled'}>${S.ai?'Apply with AI':(S.aiEnabled?'Add API key':'Optional AI is off')}</button>`;
   if(c.notes)b+=`<div class="sub" style="margin-top:8px;white-space:pre-wrap;max-height:110px;overflow:auto">${c.notes}</div>`;return sect("ai","AI assist",b);}
@@ -933,17 +935,25 @@ function openConn(){$("#connmodal").style.display="flex";loadPosting().then(rend
 function closeConn(){$("#connmodal").style.display="none";if(S._qpoll){clearInterval(S._qpoll);S._qpoll=null;}}
 async function refreshQueue(){await loadPosting();renderQueue();}                 /* light: queue only, never wipes creds inputs */
 function renderConn(){renderConnCards();renderQueue();}
-function renderConnCards(){const host=$("#conncards");if(host)host.innerHTML=connCard("youtube")+connCard("tiktok");}
+function renderConnCards(){const host=$("#conncards");if(host)host.innerHTML=connCard("youtube")+connCard("tiktok")+connCard("instagram");}
 function connCard(plat){const ps=S.posting||{},d=ps[plat]||{},red=(ps.redirect||{})[plat]||"";
-  const name=plat==="youtube"?"YouTube":"TikTok",icon=plat==="youtube"?"▶️":"🎵";
-  const idLabel=plat==="youtube"?"Client ID":"Client key",acct=plat==="youtube"?(d.channel||""):(d.handle||"");
+  const name=plat==="youtube"?"YouTube":plat==="tiktok"?"TikTok":"Instagram",icon=plat==="youtube"?"▶️":plat==="tiktok"?"🎵":"📸";
+  const idLabel=plat==="youtube"?"Client ID":plat==="tiktok"?"Client key":"Meta App ID",acct=plat==="youtube"?(d.channel||""):plat==="tiktok"?(d.handle||""):(d.username?"@"+d.username:"");
   const stt=d.connected?`<span class="st ok">Connected${acct?" · "+he(acct):""}</span>`:(d.configured?'<span class="st">Keys saved · not connected</span>':'<span class="st">Needs setup</span>');
-  let b=`<div class="grid2" style="margin-top:10px"><div><label>${idLabel}</label><input id="cc_${plat}_id" placeholder="${idLabel}" autocomplete="off"></div><div><label>Client secret</label><input id="cc_${plat}_sec" type="password" placeholder="Client secret" autocomplete="off"></div></div>
+  let b=`<div class="grid2" style="margin-top:10px"><div><label>${idLabel}</label><input id="cc_${plat}_id" placeholder="${idLabel}" autocomplete="off"></div><div><label>${plat==="instagram"?"Meta App Secret":"Client secret"}</label><input id="cc_${plat}_sec" type="password" placeholder="Client secret" autocomplete="off"></div></div>
     <div class="copyrow"><span class="sub" style="white-space:nowrap">Redirect URI</span><code id="red_${plat}">${he(red)}</code><button class="sm" onclick="copyRedirect('${plat}')">Copy</button></div>
     <div class="row" style="margin-top:10px"><button class="sm" onclick="saveCreds('${plat}')">💾 Save keys</button>${d.connected?`<button class="sm danger" onclick="disconnectAcct('${plat}')">Disconnect</button>`:`<button class="sm primary" onclick="connectAcct('${plat}')">🔗 Connect ${name}</button>`}</div>`;
   b+=connHelp(plat);
   return `<div class="conncard ${d.connected?"on":""}"><div class="row"><h4>${icon} ${name}</h4><span class="spacer"></span>${stt}</div>${b}</div>`;}
-function connHelp(plat){if(plat==="youtube")return `<details><summary>How to get these (one-time, ~5 min · free)</summary><ol>
+function connHelp(plat){if(plat==="instagram")return `<details><summary>Meta setup requirements</summary><ol>
+  <li>Use an eligible Instagram <b>Business or Creator</b> account and connect it to the Facebook Page you manage.</li>
+  <li>Create/configure a Meta app with Facebook Login for Business and the Instagram API.</li>
+  <li>Request the official permissions: <code>instagram_basic</code>, <code>instagram_content_publish</code>, <code>pages_show_list</code>, and <code>pages_read_engagement</code>.</li>
+  <li>Add the Redirect URI above exactly to the Meta app's valid OAuth redirect URIs.</li>
+  <li>Complete any required Meta app review, business verification, Page Publishing Authorization, and account eligibility checks.</li>
+  <li>Paste the Meta App ID + App Secret, save, then connect.</li></ol>
+  <div class="sub">Instagram publishing is only available to eligible professional accounts. The first connection may work only for app roles/testers until Meta grants the required access. ZonClip cannot bypass Meta approval.</div></details>`;
+  if(plat==="youtube")return `<details><summary>How to get these (one-time, ~5 min · free)</summary><ol>
   <li>Open <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a> → create a project.</li>
   <li>APIs &amp; Services → <b>Library</b> → enable <b>YouTube Data API v3</b>.</li>
   <li>OAuth consent screen → <b>External</b> → add your name/email → add yourself under <b>Test users</b>.</li>
@@ -960,10 +970,10 @@ function connHelp(plat){if(plat==="youtube")return `<details><summary>How to get
   <li>Paste the Client key + secret above → <b>Save keys</b> → <b>Connect</b>.</li></ol>
   <div class="sub">The free path sends clips to your <b>TikTok inbox</b> — open the app, tap the notification to add a caption and post (you can make it public there).</div></details>`;}
 function renderQueue(){const host=$("#postqueue");if(!host)return;const q=(S.posting&&S.posting.queue)||[],u=(S.posting&&S.posting.usage)||{};
-  const usageLine=`<div class="sub" style="margin-bottom:8px">Completed today: ${u.youtube_uploads||0} YouTube · ${u.tiktok_uploads||0} TikTok. Provider quotas vary by account; rate-limit errors appear on the affected queue item.</div>`;
+  const usageLine=`<div class="sub" style="margin-bottom:8px">Completed today: ${u.youtube_uploads||0} YouTube · ${u.tiktok_uploads||0} TikTok · ${u.instagram_uploads||0} Instagram. Provider quotas vary by account; rate-limit errors appear on the affected queue item.</div>`;
   if(!q.length){host.innerHTML=usageLine+'<div class="sub">Nothing queued yet.</div>';return;}
   host.innerHTML=usageLine+q.map(it=>{const icon=it.platform==="youtube"?"▶️":"🎵",res=it.result||{};let sub=it.when?("⏰ "+fmtDate(it.when)):"now";
-    if(it.status==="uploaded")sub=it.platform==="youtube"?("Uploaded · "+(res.privacy==="public"?"Public":"set Public in Studio")):"In your TikTok inbox — tap the notification in the app to post";
+    if(it.status==="uploaded")sub=it.platform==="youtube"?("Uploaded · "+(res.privacy==="public"?"Public":"set Public in Studio")):it.platform==="tiktok"?"In your TikTok inbox — tap the notification in the app to post":"Published to Instagram Reels";
     else if(it.status==="uploading")sub="uploading "+(it.progress||0)+"%";
     else if(it.status==="error")sub=it.error||"failed";
     const link=(it.status==="uploaded"&&res.url)?` · <a href="${res.url}" target="_blank" rel="noopener" style="color:var(--gold)">open</a>`:"";
@@ -973,31 +983,31 @@ function copyText(t){navigator.clipboard.writeText(t);toast("Copied");}
 function copyRedirect(plat){const el=$("#red_"+plat);if(el)copyText(el.textContent);}
 async function saveCreds(plat){const idv=($(`#cc_${plat}_id`).value||"").trim(),sec=($(`#cc_${plat}_sec`).value||"").trim();
   if(!idv||!sec){toast("Enter both values");return;}
-  const body=plat==="youtube"?{platform:"youtube",client_id:idv,client_secret:sec}:{platform:"tiktok",client_key:idv,client_secret:sec};
+  const body=plat==="youtube"?{platform:"youtube",client_id:idv,client_secret:sec}:plat==="tiktok"?{platform:"tiktok",client_key:idv,client_secret:sec}:{platform:"instagram",app_id:idv,app_secret:sec};
   const r=await jpost("/api/posting/creds",body);if(r.state){S.posting=r.state;renderConn();toast("Keys saved");}else toast(r.error||"Could not save");}
 async function connectAcct(plat){toast("Opening sign-in in your browser…");const r=await jpost("/api/posting/connect",{platform:plat});
   if(r.error){toast(r.error);return;}
   let n=0;const iv=setInterval(async()=>{n++;await loadPosting();const d=(S.posting||{})[plat]||{};
-    if(d.connected){clearInterval(iv);renderConn();if(cur())renderPanels();toast((plat==="youtube"?"YouTube":"TikTok")+" connected ✓");}
+    if(d.connected){clearInterval(iv);renderConn();if(cur())renderPanels();toast((plat==="youtube"?"YouTube":plat==="tiktok"?"TikTok":"Instagram")+" connected ✓");}
     else if(n>90){clearInterval(iv);}},2000);}                                    /* poll up to ~3 min while you authorize */
 async function disconnectAcct(plat){if(!confirm("Disconnect "+plat+"? You can reconnect anytime."))return;
   const r=await jpost("/api/posting/disconnect",{platform:plat});if(r.state)S.posting=r.state;renderConn();if(cur())renderPanels();}
 async function postClip(){const c=cur();if(!c)return;await flushSave();
-  const platforms=[];if($("#pShorts")&&$("#pShorts").checked)platforms.push("youtube");if($("#pTiktok")&&$("#pTiktok").checked)platforms.push("tiktok");
+  const platforms=[];if($("#pShorts")&&$("#pShorts").checked)platforms.push("youtube");if($("#pTiktok")&&$("#pTiktok").checked)platforms.push("tiktok");if($("#pInstagram")&&$("#pInstagram").checked)platforms.push("instagram");
   if(!platforms.length){toast("Tick a connected platform");return;}
   let when=0;if($("#pSched")&&$("#pSched").checked){const v=$("#pWhen").value;if(!v){toast("Pick a date & time");return;}
     when=Math.floor(new Date(v).getTime()/1000);if(when<=Date.now()/1000+30){toast("Pick a future time");return;}}
   const privacy=($("#pPriv")&&$("#pPriv").value)||"public";
   const r=await jpost("/api/posting/enqueue",{clip:c.id,platforms,when,privacy});
   if(r.error){toast(r.error);return;}if(r.state)S.posting=r.state;
-  toast(when?("Scheduled for "+fmtDate(when)):("Posting to "+platforms.map(p=>p==="youtube"?"YouTube":"TikTok").join(" + ")+"…"));}
+  toast(when?("Scheduled for "+fmtDate(when)):("Posting to "+platforms.map(p=>p==="youtube"?"YouTube":p==="tiktok"?"TikTok":"Instagram Reels").join(" + ")+"…"));}
 async function cancelPost(id){const r=await jpost("/api/posting/cancel",{id});await loadPosting();renderQueue();if(!r||!r.ok)toast("Couldn't remove");}
 /* ---------- finish review: post approved + delete rejected ---------- */
 function openFinish(){$("#finishmodal").style.display="flex";loadPosting().then(renderFinish);}
 function closeFinish(){$("#finishmodal").style.display="none";}
 function renderFinish(){const host=$("#finishbody");if(!host)return;
   const ap=S.clips.filter(c=>c.approved===true),rj=S.clips.filter(c=>c.approved===false);
-  const ps=S.posting||{},yt=ps.youtube||{},tt=ps.tiktok||{},anyConn=yt.connected||tt.connected;
+  const ps=S.posting||{},yt=ps.youtube||{},tt=ps.tiktok||{},ig=ps.instagram||{},anyConn=yt.connected||tt.connected||ig.connected;
   let h=`<div class="row" style="gap:18px;margin-bottom:14px;font-size:14px"><span>✅ <b>${ap.length}</b> approved</span><span>✕ <b>${rj.length}</b> rejected</span><span class="spacer"></span><span class="sub">${S.clips.length} clips total</span></div>`;
   h+=`<div class="conncard"><h4>🚀 Post approved (${ap.length})</h4>`;
   if(!anyConn){h+=`<div class="sub" style="margin-top:6px">Connect an account first to post.</div><div class="row" style="margin-top:8px"><button class="sm" onclick="closeFinish();openConn()">🔗 Connect accounts</button></div>`;}
@@ -1005,6 +1015,7 @@ function renderFinish(){const host=$("#finishbody");if(!host)return;
     h+=`<label class="pchk" style="margin-top:8px"><input type="checkbox" id="fYt" ${yt.connected?"checked":"disabled"}> ▶️ YouTube${yt.connected?(yt.channel?" · "+he(yt.channel):""):" — not connected"}</label>`;
     if(yt.connected)h+=`<div class="row" style="margin:0 0 2px 25px"><span class="sub">Visibility</span><select id="fPriv" style="width:auto"><option value="public">Public</option><option value="unlisted">Unlisted</option><option value="private">Private</option></select></div><div class="sub" style="margin:0 0 6px 25px;font-size:11px">Unverified projects upload Private regardless — publish in Studio.</div>`;
     h+=`<label class="pchk"><input type="checkbox" id="fTt" ${tt.connected?"checked":"disabled"}> 🎵 TikTok${tt.connected?(tt.handle?" · "+he(tt.handle):""):" — not connected"} <span class="sub">→ inbox</span></label>`;
+    h+=`<label class="pchk"><input type="checkbox" id="fIg" ${ig.connected?"checked":"disabled"}> 📸 Instagram${ig.connected?(ig.username?" · @"+he(ig.username):""):" — not connected"} <span class="sub">→ Reels</span></label>`;
     h+=`<label class="pchk" style="margin-top:6px"><input type="checkbox" id="fSched" onchange="$('#fWhen').style.display=this.checked?'block':'none'"> 🕒 Schedule for later</label><input type="datetime-local" id="fWhen" style="display:none">`;
     h+=`<div class="row" style="margin-top:9px"><button class="sm primary" onclick="postApproved()" ${ap.length?"":"disabled"}>🚀 Post ${ap.length} approved</button></div>`;
     h+=`<div class="sub" style="margin-top:7px">Approved clips not downloaded yet will render first, then post automatically.</div>`;
@@ -1013,7 +1024,7 @@ function renderFinish(){const host=$("#finishbody");if(!host)return;
   h+=`<div class="conncard"><h4>🗑 Delete rejected (${rj.length})</h4><div class="sub" style="margin-top:6px">Removes the rejected clips' rendered files from this batch. Your source recording is untouched — you can re-make clips anytime.</div><div class="row" style="margin-top:9px"><button class="sm danger" onclick="deleteRejected()" ${rj.length?"":"disabled"}>🗑 Delete ${rj.length} rejected</button></div></div>`;
   host.innerHTML=h;}
 async function postApproved(){await flushSave();
-  const platforms=[];if($("#fYt")&&$("#fYt").checked)platforms.push("youtube");if($("#fTt")&&$("#fTt").checked)platforms.push("tiktok");
+  const platforms=[];if($("#fYt")&&$("#fYt").checked)platforms.push("youtube");if($("#fTt")&&$("#fTt").checked)platforms.push("tiktok");if($("#fIg")&&$("#fIg").checked)platforms.push("instagram");
   if(!platforms.length){toast("Tick a connected platform");return;}
   let when=0;if($("#fSched")&&$("#fSched").checked){const v=$("#fWhen").value;if(!v){toast("Pick a date & time");return;}
     when=Math.floor(new Date(v).getTime()/1000);if(when<=Date.now()/1000+30){toast("Pick a future time");return;}}
