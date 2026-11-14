@@ -69,6 +69,32 @@ def discover_ready(folder: Path, state: dict, settle_seconds: float, now: float 
     return ready
 
 
+def dedupe_highlights(clips: list[dict], center_tolerance_s: float = 8.0,
+                       overlap_ratio: float = 0.5) -> list[dict]:
+    """Keep the strongest clip when adjacent OBS chunks capture the same moment."""
+    ranked = sorted(clips, key=lambda item: float(item.get("score", 0) or 0), reverse=True)
+    kept = []
+    for candidate in ranked:
+        start, end = candidate.get("global_start"), candidate.get("global_end")
+        duplicate = False
+        if start is not None and end is not None:
+            center = (float(start) + float(end)) / 2
+            duration = max(0.1, float(end) - float(start))
+            for existing in kept:
+                other_start, other_end = existing.get("global_start"), existing.get("global_end")
+                if other_start is None or other_end is None:
+                    continue
+                other_center = (float(other_start) + float(other_end)) / 2
+                intersection = max(0.0, min(float(end), float(other_end)) - max(float(start), float(other_start)))
+                shorter = min(duration, max(0.1, float(other_end) - float(other_start)))
+                if abs(center - other_center) <= center_tolerance_s or intersection / shorter >= overlap_ratio:
+                    duplicate = True
+                    break
+        if not duplicate:
+            kept.append(candidate)
+    return kept
+
+
 def tier_for_rank(rank: int, total: int) -> str:
     """Relative quality tiers; no artificial minimum number of clips is created."""
     if total <= 0:
@@ -90,6 +116,13 @@ def collect_highlights(session_dir: Path, state: dict) -> list[dict]:
             project = json.loads(project_path.read_text(encoding="utf-8"))
         except (OSError, ValueError, KeyError):
             continue
+        source_path = Path(record["source"])
+        try:
+            source_stat = source_path.stat()
+            source_duration = float(record.get("duration") or 0)
+            source_start_epoch = source_stat.st_mtime - source_duration if source_duration > 0 else None
+        except OSError:
+            source_start_epoch = None
         for clip in project.get("clips", []):
             if clip.get("render_status") != "done" or not clip.get("file"):
                 continue
@@ -98,6 +131,7 @@ def collect_highlights(session_dir: Path, state: dict) -> list[dict]:
                 continue
             duration = sum(max(0.0, float(x.get("end", 0)) - float(x.get("start", 0)))
                            for x in clip.get("segments", []))
+            clip_start = float((clip.get("segments") or [{}])[0].get("start", 0) or 0)
             found.append({
                 "id": f'{record["key"]}:{clip.get("id", mp4.stem)}',
                 "score": float(clip.get("score", 0) or 0),
@@ -105,9 +139,12 @@ def collect_highlights(session_dir: Path, state: dict) -> list[dict]:
                 "file": str(mp4),
                 "source": record["source"],
                 "source_rank": int(clip.get("rank", 0) or 0),
+                "global_start": source_start_epoch + clip_start if source_start_epoch is not None else None,
+                "global_end": source_start_epoch + clip_start + duration if source_start_epoch is not None else None,
                 "title": ((clip.get("metadata") or {}).get("shorts") or {}).get("title")
                          or clip.get("transcript", "")[:80],
             })
+    found = dedupe_highlights(found)
     found.sort(key=lambda item: (item["score"], item["duration"]), reverse=True)
     for rank, item in enumerate(found, 1):
         item["rank"] = rank
@@ -187,11 +224,17 @@ def process_segment(path: Path, session_dir: Path, per_segment_count: int) -> di
     log_path.write_text((result.stdout or "") + "\n" + (result.stderr or ""), encoding="utf-8")
     if result.returncode not in (0, 1):
         raise RuntimeError(f"Clip pipeline failed for {path.name}; see {log_path}")
+    try:
+        sys.path.insert(0, str(ROOT))
+        from pipeline import util
+        duration = util.probe_duration(str(path))
+    except Exception:
+        duration = 0
     if result.returncode == 1 and not (output_dir / "project.json").is_file():
         return {"key": key, "source": str(path.resolve()), "output_dir": str(output_dir),
-                "status": "no_highlights", "log": str(log_path)}
+                "duration": duration, "status": "no_highlights", "log": str(log_path)}
     return {"key": key, "source": str(path.resolve()), "output_dir": str(output_dir),
-            "status": "processed", "log": str(log_path)}
+            "duration": duration, "status": "processed", "log": str(log_path)}
 
 
 def run(args) -> int:
