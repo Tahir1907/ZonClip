@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from live import discover_ready, tier_for_rank
+from live import dedupe_highlights, discover_ready, tier_for_rank
 
 
 class LiveWatcherTests(unittest.TestCase):
@@ -41,6 +41,15 @@ class LiveWatcherTests(unittest.TestCase):
         self.assertEqual(tier_for_rank(2, 5), "good")
         self.assertEqual(tier_for_rank(5, 5), "ranking")
         self.assertEqual(tier_for_rank(1, 0), "ranking")
+
+    def test_deduplicates_same_moment_across_adjacent_segments(self):
+        clips = [
+            {"id": "segment-a:clip1", "score": 7, "global_start": 590, "global_end": 630},
+            {"id": "segment-b:clip1", "score": 9, "global_start": 600, "global_end": 640},
+            {"id": "segment-b:clip2", "score": 6, "global_start": 710, "global_end": 740},
+        ]
+        result = dedupe_highlights(clips)
+        self.assertEqual([x["id"] for x in result], ["segment-b:clip1", "segment-b:clip2"])
 
 
 if __name__ == "__main__":
