@@ -67,7 +67,12 @@ def main() -> int:
     ap.add_argument("--dashboard", action="store_true", help="open the review dashboard when done")
     ap.add_argument("--keep", type=int, default=cfg.keep_for_rerank)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--ranking-group-size", type=int, default=3,
+                    help="clips per ranked compilation (45 clips -> 15 ranking videos)")
+    ap.add_argument("--no-rankings", action="store_true", help="skip ranked compilation videos")
     args = ap.parse_args()
+    if args.count < 1 or args.ranking_group_size < 1:
+        ap.error("--count and --ranking-group-size must be positive")
 
     cfg = cfg.with_overrides(device=args.device, model=args.model, clip_count=args.count,
                              keep_for_rerank=args.keep, autodetect_cam=not args.no_autodetect_cam,
@@ -126,6 +131,14 @@ def main() -> int:
                 c["render_status"], c["render_error"] = "error", str(e)
                 log(f"  RENDER FAILED {spec.id}: {e}")
 
+    if not args.dry_run and not args.no_rankings:
+        try:
+            from pipeline import rankings
+            project["rankings"] = rankings.build_rankings(out_dir, project, args.ranking_group_size)
+            log(f"[rankings] created {len(project['rankings'])} ranked compilation video(s)")
+        except Exception as e:  # noqa: BLE001 - preserve all individual clips if compilation fails
+            project["ranking_error"] = str(e)
+            log(f"[rankings] compilation failed; individual clips are safe: {e}")
     proj.save_project(out_dir, project)
     _write_md(out_dir, project)
     log(f"\nDone -> {out_dir}\n  project.json (dashboard), clips.md (review sheet)")
