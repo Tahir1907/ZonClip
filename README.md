@@ -236,3 +236,7 @@ ZonClip can watch completed OBS recording segments and process them continuously
 
 See [Live mode setup](docs/LIVE_MODE.md) for OBS configuration, commands, outputs, and current limitations.
 
+## Instagram Reels publishing
+
+ZonClip includes an official Meta Instagram Reels publishing integration using the Facebook Login resumable upload flow. It requires an eligible Business/Creator account linked to a Facebook Page, Meta app credentials, and the permissions/access Meta grants. See [Instagram setup](docs/INSTAGRAM_SETUP.md) before connecting an account.
+
