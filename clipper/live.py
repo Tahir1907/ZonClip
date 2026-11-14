@@ -118,7 +118,7 @@ def collect_highlights(session_dir: Path, state: dict) -> list[dict]:
 def write_concat_file(path: Path, clips: list[dict]) -> None:
     lines = []
     for clip in clips:
-        escaped = clip["file"].replace("'", "'\\''")
+        escaped = Path(clip["file"]).resolve().as_posix().replace("'", "'\\''")
         lines.append(f"file '{escaped}'")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -155,8 +155,8 @@ def build_ranked_videos(session_dir: Path, clips: list[dict], max_minutes: float
         write_concat_file(concat_path, group)
         command = [
             ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
-            "-f", "concat", "-safe", "0", "-i", str(concat_path),
-            "-map", "0:v:0", "-map", "0:a?", "-fflags", "+genpts",
+            "-fflags", "+genpts", "-f", "concat", "-safe", "0", "-i", str(concat_path),
+            "-map", "0:v:0", "-map", "0:a?",
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
             "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k",
             "-movflags", "+faststart", str(output_path),
@@ -228,6 +228,14 @@ def run(args) -> int:
                     })
                     print(f"[live] {record['status']}: {path.name}; {len(highlights)} session highlights so far")
                 except Exception as exc:
+                    try:
+                        stat = path.stat()
+                        state.setdefault("processed", {})[key] = {
+                            "size": stat.st_size, "mtime_ns": stat.st_mtime_ns,
+                            "status": "error", "processed_at": int(time.time()),
+                        }
+                    except OSError:
+                        pass
                     state.setdefault("errors", []).append({
                         "source": str(path), "error": str(exc), "at": int(time.time())})
                     print(f"[live] ERROR: {exc}", file=sys.stderr)
