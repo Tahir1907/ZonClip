@@ -1,18 +1,17 @@
-# ClipForge
+# ZonClip
 
 **Turn a Twitch VOD into ready-to-post vertical clips — automatically, locally, and for free.**
 
-ClipForge transcribes a stream on your own GPU, finds the most clippable moments, and renders each
+ZonClip transcribes a stream locally (GPU acceleration when available), finds clippable moments, and renders each
 as a 9:16 short (facecam on top, gameplay on the bottom, animated word-by-word captions, a follow
-watermark, and a hook titlecard). A local **Studio** app lets you trim, restyle, and fine-tune every
+watermark, and a hook titlecard). A local **ZonClip Studio** app lets you trim, restyle, and fine-tune every
 clip with a live WYSIWYG preview — then post or schedule straight to **YouTube Shorts** and **TikTok**
 without leaving the app. It also assembles long-form 16:9 YouTube videos from the same VOD.
 
-The only optional paid piece is an Anthropic API key for AI title/caption writing and clip ranking;
-everything else runs on your machine at no cost.
+The default clipping workflow is local and does not require a paid AI API. Anthropic-powered writing/reranking remains an optional, explicitly enabled add-on.
 
-> Fully configurable — ClipForge ships with neutral defaults; set your own handle and persona in one
-> local JSON file (see [Make it yours](#make-it-yours)). No accounts, paths, or keys are baked in.
+> Fully configurable — ZonClip ships with neutral defaults; set your own handle and persona in one
+> local JSON file (see [Make it yours](#make-it-yours)). No creator-specific account credentials or API keys are baked in.
 
 ---
 
@@ -48,7 +47,7 @@ Full design notes: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
   over lobby chatter, snapped to sentence boundaries.
 - **Optional AI pass** (Claude): re-rank the shortlist, write per-platform copy (a high-energy TikTok
   caption vs a searchable YouTube title, in an authentic voice with no emojis or em dashes), and apply
-  plain-English edits. The whole pipeline works without it.
+  plain-English edits. The local clipping pipeline works without it; automatic external-AI use is disabled unless `ai_enabled` is explicitly enabled in your local config.
 - **The Studio** — a native desktop window (no browser chrome) with a true live preview: add text,
   shapes, arrows, emojis, images, a chat inset, and a hook titlecard, and they appear instantly on the
   video. Trim, splice in more of the stream, restyle captions, approve, and batch-render.
@@ -61,7 +60,7 @@ Full design notes: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 ## Requirements
 
 - **Windows 10/11** (the app uses Windows launchers, a native WebView2 window, and `%USERPROFILE%` paths).
-- **Python 3.11+** (3.13/3.14 recommended).
+- **Python 3.11 or 3.12** (the installer currently targets these versions).
 - **ffmpeg + ffprobe** on `PATH` (or installed via WinGet — `winget install Gyan.FFmpeg`).
 - **A GPU is recommended** for fast transcription:
   - **NVIDIA** → CUDA via faster-whisper (installed by `setup.ps1`).
@@ -75,8 +74,8 @@ Full design notes: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 ## Install
 
 ```powershell
-git clone https://github.com/Brettillian123/clipforge.git
-cd clipforge\clipper
+git clone https://github.com/Tahir1907/ZonClip.git
+cd ZonClip\clipper
 
 # one-time setup: creates a local venv, installs deps, copies caption fonts, builds the watermark
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
@@ -99,7 +98,7 @@ python -m venv "$env:USERPROFILE\clipforge\.venv"
 
 ## Run
 
-**The Studio (recommended):**
+**ZonClip Studio (recommended):**
 
 ```powershell
 cd clipper
@@ -107,11 +106,11 @@ $env:PYTHONPATH = (Get-Location)
 & "$env:USERPROFILE\clipforge\.venv\Scripts\python.exe" dashboard.py
 ```
 
-…or just double-click **`clipper\ClipForge.bat`**. The Studio opens as its own desktop window.
+…or just double-click **`clipper\ClipForge.bat`**. ZonClip Studio opens as its own desktop window.
 
 1. Drop your stream recordings (`.mp4`) in your **Videos** folder (or point `CLIPFORGE_LIBRARY`
    elsewhere). They appear on the Home screen.
-2. **🎬 Make clips** (or **🎞 Longform**) on a VOD. ClipForge transcribes, detects, and renders.
+2. **🎬 Make clips** (or **🎞 Longform**) on a VOD. ZonClip transcribes, detects, and renders.
 3. Review and fine-tune each clip in the editor.
 4. **⬇ Download** a clip to render the final burned-in file, then **🚀 Post** it (see
    [Posting](#posting-to-youtube--tiktok)).
@@ -133,7 +132,7 @@ the first 15 min) · `--dry-run` (detect only, no render) · `--dashboard` (rend
 
 ## Make it yours
 
-ClipForge ships with neutral defaults. To personalise it **without editing any code**, drop a
+ZonClip ships with neutral defaults. To personalise it **without editing any code**, drop a
 `config.json` in your ClipForge home (`%USERPROFILE%\clipforge\config.json`). Any field from
 [`pipeline/config.py`](clipper/pipeline/config.py) can be overridden:
 
@@ -219,3 +218,10 @@ AI and posting features.
 A free, personal, open-source project. Provided as-is, with no warranty. Not affiliated with Twitch,
 YouTube, Google, or TikTok. You are responsible for the content you upload and for complying with each
 platform's terms.
+
+
+## Current implementation scope
+
+The current release is a **local Windows VOD application**. Continuous live-stream capture, dynamic live highlight queues, automatic ranking/compilation videos, Instagram publishing, and a Vercel-hosted web dashboard with a secure local processing agent are not implemented yet. YouTube and TikTok posting are supported in the existing semi-automated flows described above.
+
+See [the Windows test plan](docs/TEST_PLAN.md) before running your first test.
