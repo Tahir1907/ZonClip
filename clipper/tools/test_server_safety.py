@@ -8,6 +8,8 @@ import tempfile
 import unittest
 from types import SimpleNamespace
 
+from pipeline import server as server_module
+from pipeline.config import Config
 from pipeline.server import Handler, State
 
 
@@ -88,6 +90,26 @@ class ServerSafetyTests(unittest.TestCase):
 
     def test_rejects_wrong_port(self):
         self.assertFalse(self._handler("127.0.0.1:9999")._local_request_allowed())
+
+    def test_paid_ai_is_disabled_by_default(self):
+        self.assertFalse(Config().ai_enabled)
+
+    def test_paid_ai_routes_fail_closed_when_disabled(self):
+        previous = server_module.STATE
+        server_module.STATE = SimpleNamespace(cfg=SimpleNamespace(ai_enabled=False))
+        handler = Handler.__new__(Handler)
+        handler._json = lambda payload, code=200: (payload, code)
+        try:
+            for route in (
+                lambda: handler._ai("clip1", {}),
+                lambda: handler._ai_titles(),
+                lambda: handler._clean_captions("clip1"),
+            ):
+                payload, code = route()
+                self.assertEqual(code, 403)
+                self.assertIn("disabled", payload["error"])
+        finally:
+            server_module.STATE = previous
 
 
 if __name__ == "__main__":
