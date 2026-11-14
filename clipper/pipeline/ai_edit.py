@@ -65,7 +65,7 @@ def clean_captions(cfg: config.Config, words: list) -> list:
     try:
         import anthropic
     except ImportError as e:
-        raise RuntimeError("anthropic not installed. Run: pip install anthropic") from e
+        raise RuntimeError("anthropic not installed. Run: pip install -r requirements-ai.txt") from e
 
     src = [{"i": i, "s": round(float(w["start"]), 2), "e": round(float(w["end"]), 2),
             "w": (w.get("word") or "").strip()} for i, w in enumerate(words)]
@@ -129,7 +129,7 @@ def edit(cfg: config.Config, vod_duration: float, spec, transcript: dict, instru
     try:
         import anthropic
     except ImportError as e:
-        raise RuntimeError("anthropic not installed. Run: pip install anthropic") from e
+        raise RuntimeError("anthropic not installed. Run: pip install -r requirements-ai.txt") from e
 
     cur = {
         "id": spec.id,
