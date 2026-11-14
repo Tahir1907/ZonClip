@@ -76,6 +76,16 @@ def discover_ready(folder: Path, state: dict, settle_seconds: float, now: float 
     return ready
 
 
+def should_process(previous: dict | None, now: float | None = None) -> bool:
+    """Skip completed inputs and errors still inside their retry backoff."""
+    if not previous:
+        return True
+    if previous.get("status") != "error":
+        return False
+    now = time.time() if now is None else now
+    return int(previous.get("retry_after", 0) or 0) <= int(now)
+
+
 def dedupe_highlights(clips: list[dict], center_tolerance_s: float = 8.0,
                        overlap_ratio: float = 0.5) -> list[dict]:
     """Keep the strongest clip when adjacent OBS chunks capture the same moment."""
@@ -262,9 +272,7 @@ def run(args) -> int:
             for path in ready:
                 key = str(path.resolve())
                 previous = state.setdefault("processed", {}).get(key)
-                if previous and previous.get("status") != "error":
-                    continue
-                if previous and int(previous.get("retry_after", 0) or 0) > int(time.time()):
+                if not should_process(previous):
                     continue
                 print(f"[live] Stable recording detected: {path.name}")
                 try:
