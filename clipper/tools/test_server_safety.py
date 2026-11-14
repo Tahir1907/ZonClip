@@ -92,22 +92,9 @@ class ServerSafetyTests(unittest.TestCase):
     def test_rejects_wrong_port(self):
         self.assertFalse(self._handler("127.0.0.1:9999")._local_request_allowed())
 
-    def test_allows_only_exact_configured_web_origin(self):
-        previous = server_module.STATE
-        server_module.STATE = SimpleNamespace(cfg=SimpleNamespace(web_origin="https://zonclip-demo.vercel.app"))
-        try:
-            self.assertTrue(self._handler("127.0.0.1:8765", "https://zonclip-demo.vercel.app")._local_request_allowed())
-            self.assertFalse(self._handler("127.0.0.1:8765", "https://attacker.vercel.app")._local_request_allowed())
-        finally:
-            server_module.STATE = previous
-
-    def test_rejects_invalid_configured_web_origin(self):
-        previous = server_module.STATE
-        server_module.STATE = SimpleNamespace(cfg=SimpleNamespace(web_origin="https://zonclip-demo.vercel.app/evil"))
-        try:
-            self.assertFalse(server_module._configured_web_origin())
-        finally:
-            server_module.STATE = previous
+    def test_rejects_every_remote_origin(self):
+        self.assertFalse(self._handler("127.0.0.1:8765", "https://zonclip.example")._local_request_allowed())
+        self.assertFalse(self._handler("127.0.0.1:8765", "http://192.168.1.20:8765")._local_request_allowed())
 
     def test_paid_ai_is_disabled_by_default(self):
         self.assertFalse(Config().ai_enabled)
