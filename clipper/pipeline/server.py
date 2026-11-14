@@ -41,20 +41,6 @@ def _no_nan(_v):
     raise ValueError("NaN/Infinity not allowed")
 
 
-def _configured_web_origin() -> str:
-    """Return a strictly validated single web origin; never accept arbitrary CSP/header text."""
-    state = globals().get("STATE")
-    cfg = getattr(state, "cfg", None)
-    raw = (getattr(cfg, "web_origin", "") or "").strip().rstrip("/")
-    if not raw:
-        return ""
-    parsed = urlparse(raw)
-    if (parsed.scheme not in ("https", "http") or not parsed.netloc or parsed.path
-            or parsed.params or parsed.query or parsed.fragment or parsed.username or parsed.password):
-        return ""
-    return f"{parsed.scheme}://{parsed.netloc}"
-
-
 # the fields that define the rendered/exported video (used for staleness + reset snapshots)
 EXPORT_FIELDS = ("segments", "captions_enabled", "caption_style", "caption_words",
                  "chat", "elements", "cam", "cam_mode")
@@ -747,8 +733,7 @@ class Handler(BaseHTTPRequestHandler):
                 parsed = urlparse(origin)
                 local_origin = (parsed.scheme == "http" and parsed.hostname in allowed
                                 and parsed.port == self.server.server_port)
-                remote_origin = bool(_configured_web_origin() and origin == _configured_web_origin())
-                if not (local_origin or remote_origin):
+                if not local_origin:
                     return False
             return True
         except ValueError:
@@ -764,9 +749,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         headers = dict(extra or {})
         if ctype.startswith("text/html"):
-            web_origin = _configured_web_origin()
-            ancestors = "'self'" + (f" {web_origin}" if web_origin else "")
-            headers.setdefault("Content-Security-Policy", f"frame-ancestors {ancestors}")
+            headers.setdefault("Content-Security-Policy", "frame-ancestors 'self'")
             headers.setdefault("X-Content-Type-Options", "nosniff")
             headers.setdefault("Referrer-Policy", "no-referrer")
         for k, v in headers.items():
