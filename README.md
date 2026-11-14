@@ -5,7 +5,7 @@
 ZonClip transcribes a stream locally (GPU acceleration when available), finds clippable moments, and renders each
 as a 9:16 short (facecam on top, gameplay on the bottom, animated word-by-word captions, a follow
 watermark, and a hook titlecard). A local **ZonClip Studio** app lets you trim, restyle, and fine-tune every
-clip with a live WYSIWYG preview — then post or schedule straight to **YouTube Shorts** and **TikTok**
+clip with a live WYSIWYG preview — then post or schedule to **YouTube Shorts**, **TikTok**, and **Instagram Reels**
 without leaving the app. It also assembles long-form 16:9 YouTube videos from the same VOD.
 
 The default clipping workflow is local and does not require a paid AI API. Anthropic-powered writing/reranking remains an optional, explicitly enabled add-on.
