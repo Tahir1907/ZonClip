@@ -1,4 +1,4 @@
-# ClipForge Studio — app & CLI reference
+# ZonClip Studio — app & CLI reference
 
 Turn a Twitch VOD into ready-to-post **vertical clips** for TikTok and YouTube Shorts — then review and
 fine-tune every one in a local editor, and post or schedule them without leaving the app.
@@ -11,7 +11,7 @@ It transcribes the stream, finds your most clippable moments, and renders each a
 **facecam on top, gameplay on the bottom, animated word-by-word captions, a follow watermark, and a hook
 titlecard.** The **Studio** then lets you trim, restyle captions, add text/shapes/emojis/images, drop in
 a chat screenshot, splice in more of the stream, write viral titles with AI, approve, batch-render, and
-post — all locally. Clips use the raw clip audio (no added music), so they're safe to post as-is.
+post — with video processing kept local. Clips use the raw clip audio (no added music), so they're safe to post as-is.
 
 ---
 
@@ -26,7 +26,7 @@ $env:PYTHONPATH = (Get-Location)
 & "$env:USERPROFILE\clipforge\.venv\Scripts\python.exe" dashboard.py
 ```
 
-The Studio opens as its own desktop window at `http://127.0.0.1:8765`. Drop stream recordings (`.mp4`)
+ZonClip Studio opens as its own desktop window at `http://127.0.0.1:8765`. Drop stream recordings (`.mp4`)
 in your **Videos** folder and they show up on the Home screen — pick one and hit **🎬 Make clips**.
 
 **CLI (one-off, no UI):**
@@ -37,7 +37,7 @@ $env:PYTHONPATH = (Get-Location)
 ```
 
 `clip.py` writes the clips + a `project.json` to `"<vod> - clips\"`. Options: `--count N` ·
-`--ai` (Claude picks + titles) · `--limit-secs 900` (fast test on first 15 min) · `--dry-run`
+`--ai` (optional paid Claude ranking + titles; off by default) · `--limit-secs 900` (fast test on first 15 min) · `--dry-run`
 (detect only) · `--dashboard` (render then open the Studio).
 
 ---
@@ -48,7 +48,7 @@ $env:PYTHONPATH = (Get-Location)
 has changes not yet in its downloaded file; a green **✓ posted** tag shows once a clip has been uploaded
 (and the post box lists where + when, so you don't double-post). Filter by New / Approved / Rejected. **✨ AI titles (all)**
 writes **platform-tailored** copy for every clip in one click: a searchable YouTube title, a
-high-energy TikTok caption, and hashtags, in an authentic voice with **no emojis or em dashes** (needs an API key).
+high-energy TikTok caption, and hashtags, in an authentic voice with **no emojis or em dashes** (requires the optional paid AI integration to be enabled and configured).
 **Export approved (N)** renders the final files for everything you've approved. **✅ Finish review** is
 the end-of-pass one-stop: it posts every **approved** clip to your connected accounts (rendering any that
 aren't downloaded yet, then auto-posting) and deletes the **rejected** ones in one place.
