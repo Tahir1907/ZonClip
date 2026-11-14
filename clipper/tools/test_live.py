@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from live import dedupe_highlights, discover_ready, tier_for_rank
+from live import dedupe_highlights, discover_ready, should_process, tier_for_rank
 
 
 class LiveWatcherTests(unittest.TestCase):
@@ -16,6 +16,25 @@ class LiveWatcherTests(unittest.TestCase):
             self.assertEqual(discover_ready(root, state, 10, now=100), [])
             self.assertEqual(discover_ready(root, state, 10, now=109), [])
             self.assertEqual(discover_ready(root, state, 10, now=110), [video])
+
+    def test_one_shot_accepts_files_already_stable_before_start(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            video = root / "finished.mp4"
+            video.write_bytes(b"complete")
+            old = 100
+            import os
+            os.utime(video, (old, old))
+            self.assertEqual(
+                discover_ready(root, {"observed": {}}, 20, now=200, initial_stable=True),
+                [video],
+            )
+
+    def test_retry_policy_skips_completed_and_backs_off_errors(self):
+        self.assertTrue(should_process(None, now=100))
+        self.assertFalse(should_process({"status": "processed"}, now=100))
+        self.assertFalse(should_process({"status": "error", "retry_after": 120}, now=100))
+        self.assertTrue(should_process({"status": "error", "retry_after": 90}, now=100))
 
     def test_size_change_restarts_stability_window(self):
         with tempfile.TemporaryDirectory() as folder:

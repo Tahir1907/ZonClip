@@ -25,7 +25,9 @@ $env:PYTHONPATH = (Get-Location)
 & "$env:USERPROFILE\clipforge\.venv\Scripts\python.exe" .\live.py --watch "C:\ZonClip\LiveInput" --count 6 --settle-seconds 20
 ```
 
-The watcher waits until each recording file has stopped changing for 20 seconds, then runs the existing clip.py pipeline against it. A segment is processed only once per session. The first run may take longer while the local transcription model is downloaded.
+The watcher waits until each recording file has stopped changing for 20 seconds, then runs the existing clip.py pipeline against it. Completed segments are recorded in the session state so they are not processed twice. Failed segments are retried with a bounded backoff (15 seconds up to 5 minutes) instead of being permanently marked complete. The first run may take longer while the local transcription model is downloaded.
+
+For a one-time folder scan, add `--once`. It processes files whose last-modified time is already older than the settle window, then exits; files still being written are left for a later normal watcher run.
 
 - --count 6: at most six candidate clips per completed segment, not six for the whole stream.
 - --settle-seconds 20: wait for the recording file to be fully closed.

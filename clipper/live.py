@@ -40,8 +40,13 @@ def is_video(path: Path) -> bool:
     return path.is_file() and path.suffix.lower() in VIDEO_EXTS and not path.name.endswith(".tmp")
 
 
-def discover_ready(folder: Path, state: dict, settle_seconds: float, now: float | None = None) -> list[Path]:
-    """Return files whose size has stayed unchanged for the configured settle period."""
+def discover_ready(folder: Path, state: dict, settle_seconds: float, now: float | None = None,
+                   initial_stable: bool = False) -> list[Path]:
+    """Return files stable for the settle period.
+
+    In one-shot mode, files whose mtime already predates the settle window are
+    immediately eligible; newly-created/actively-written files still wait.
+    """
     now = time.time() if now is None else now
     observed = state.setdefault("observed", {})
     ready = []
@@ -59,6 +64,8 @@ def discover_ready(folder: Path, state: dict, settle_seconds: float, now: float 
         previous = observed.get(key)
         if not previous or previous.get("signature") != signature:
             observed[key] = {"signature": signature, "stable_since": now}
+            if initial_stable and now - stat.st_mtime >= settle_seconds:
+                ready.append(path)
             continue
         if now - float(previous.get("stable_since", now)) >= settle_seconds:
             ready.append(path)
@@ -67,6 +74,16 @@ def discover_ready(folder: Path, state: dict, settle_seconds: float, now: float 
         if key not in present:
             observed.pop(key, None)
     return ready
+
+
+def should_process(previous: dict | None, now: float | None = None) -> bool:
+    """Skip completed inputs and errors still inside their retry backoff."""
+    if not previous:
+        return True
+    if previous.get("status") != "error":
+        return False
+    now = time.time() if now is None else now
+    return int(previous.get("retry_after", 0) or 0) <= int(now)
 
 
 def dedupe_highlights(clips: list[dict], center_tolerance_s: float = 8.0,
@@ -251,10 +268,11 @@ def run(args) -> int:
     print("[live] No session-wide clip cap. Press Ctrl+C to stop and build ranked videos.")
     try:
         while True:
-            ready = discover_ready(source, state, args.settle_seconds)
+            ready = discover_ready(source, state, args.settle_seconds, initial_stable=args.once)
             for path in ready:
                 key = str(path.resolve())
-                if key in state.setdefault("processed", {}):
+                previous = state.setdefault("processed", {}).get(key)
+                if not should_process(previous):
                     continue
                 print(f"[live] Stable recording detected: {path.name}")
                 try:
@@ -278,7 +296,17 @@ def run(args) -> int:
                             "status": "error", "processed_at": int(time.time()),
                         }
                     except OSError:
-                        pass
+                        stat = None
+                    previous = state.setdefault("processed", {}).get(key, {})
+                    attempts = int(previous.get("attempts", 0) or 0) + 1
+                    retry_delay = min(300, 15 * (2 ** min(attempts - 1, 4)))
+                    if stat is not None:
+                        state["processed"][key] = {
+                            "size": stat.st_size, "mtime_ns": stat.st_mtime_ns,
+                            "status": "error", "attempts": attempts,
+                            "retry_after": int(time.time()) + retry_delay,
+                            "processed_at": int(time.time()),
+                        }
                     state.setdefault("errors", []).append({
                         "source": str(path), "error": str(exc), "at": int(time.time())})
                     print(f"[live] ERROR: {exc}", file=sys.stderr)
@@ -310,7 +338,8 @@ def main() -> int:
     parser.add_argument("--settle-seconds", type=float, default=20.0, help="How long a recording must stay unchanged before processing")
     parser.add_argument("--poll-seconds", type=float, default=5.0)
     parser.add_argument("--ranking-max-minutes", type=float, default=12.0, help="Maximum length of each ranked compilation part")
-    parser.add_argument("--once", action="store_true", help="Process currently stable files once, then exit")
+    parser.add_argument("--once", action="store_true",
+                        help="Process files already stable for the settle period once, then exit")
     args = parser.parse_args()
     if args.count < 1 or args.count > 50:
         parser.error("--count must be between 1 and 50 per segment")
