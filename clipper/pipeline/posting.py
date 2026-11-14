@@ -1,4 +1,4 @@
-"""Post finished clips straight to YouTube Shorts + TikTok from inside ClipForge.
+"""Post finished clips to YouTube Shorts, TikTok, and Instagram Reels from ZonClip Studio.
 
 FREE / local-only design:
   * OAuth uses the app's OWN local server as the loopback redirect
@@ -19,7 +19,7 @@ public-posting AUDIT (which needs a public website + privacy policy), posting is
                the TikTok app, tap the inbox notification, add the caption, and Post (can be public there).
                Direct API publishing needs the audit.
 
-Everything here degrades gracefully: if the optional Google/requests libraries aren't installed,
+Everything here degrades gracefully: if optional Google/requests libraries aren't installed,
 the rest of ClipForge is unaffected and the posting actions surface a friendly "pip install" error.
 """
 from __future__ import annotations
