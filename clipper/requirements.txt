@@ -1,16 +1,17 @@
-# Core
+# Core local clipping and Studio dependencies.
+# Paid/external AI integrations are intentionally kept out of the default install.
 faster-whisper>=1.2
 numpy>=2.0
 pillow>=10
-anthropic>=0.40        # AI titles / re-rank / natural-language edits (Studio)
-pywebview>=6.2         # opens the Studio as a native desktop window (Windows WebView2), not a browser
-send2trash>=1.8        # delete VODs to the Recycle Bin (recoverable) from the Home picker
+pywebview>=6.2         # native Windows Studio window (WebView2)
+send2trash>=1.8        # recoverable deletion from the Home picker
 
-# Post to YouTube Shorts + TikTok from the Studio (optional — posting features only):
-requests>=2.31                 # TikTok Content Posting API (OAuth + chunked upload)
-google-api-python-client>=2.0  # YouTube Data API v3 (resumable videos.insert + thumbnail)
-google-auth>=2.0               # YouTube OAuth credentials / token refresh
-google-auth-oauthlib>=1.0      # YouTube installed-app OAuth flow (loopback redirect)
+# YouTube Shorts + TikTok publishing dependencies.
+# These libraries are free; platform developer approval and quotas still apply.
+requests>=2.31
+google-api-python-client>=2.0
+google-auth>=2.0
+google-auth-oauthlib>=1.0
 
 # NVIDIA GPU acceleration (installed by setup.ps1 only when an NVIDIA GPU is present):
 #   nvidia-cublas-cu12
