@@ -66,16 +66,16 @@ Include:
 
 Never share OAuth access tokens, refresh tokens, client secrets, or API keys.
 
-## Current scope boundaries
+## Implemented features vs. validation status
 
-The current repository is a **local Windows desktop/VOD application**. The existing code includes local transcription and highlight scoring, vertical rendering, word-by-word captions, the editor, long-form VOD rendering, and YouTube/TikTok posting workflows.
+The current repository is a **local Windows desktop application**. The codebase includes local transcription and highlight scoring, vertical rendering, word-by-word captions, the editor, long-form VOD rendering, YouTube/TikTok posting workflows, OBS-segment live mode, ranking compilations, and an Instagram Reels integration.
 
-These larger features are **not implemented by the current branch yet** and should not be treated as passing tests:
+Passing unit tests or GitHub Actions does **not** mean every feature has been verified end-to-end. Use these distinctions:
 
-- Continuous live-stream capture and dynamic live highlight generation
-- Automatic ranking/compilation videos from the best moments
-- Instagram publishing
-- A Vercel-hosted web dashboard plus secure local processing agent
-- Fully hands-off public posting where platform audits/permissions are required
+- **Covered by automated regression tests:** local server request/path boundaries, live file stability and deduplication, live retry/one-shot behavior, ranking group selection, and Instagram OAuth URL/state handling.
+- **Requires a real Windows-machine test:** setup on the target PC, FFmpeg rendering from a real VOD, caption timing and export comparison, long-form rendering, sustained OBS segment processing, and recovery after closing/reopening the app.
+- **Requires the user's own platform setup and eligible account:** YouTube/TikTok/Instagram OAuth and uploads. A passing OAuth unit test does not prove that a real platform app has the required permissions or that a real upload will be accepted.
+- **Not included:** direct ingestion of a Twitch/YouTube stream URL, cloud rendering/storage, a hosted dashboard, or bypassing platform audits/permissions. Live mode watches completed local OBS recording segments.
+- **Not guaranteed:** fully hands-off public posting. Platform app review, account eligibility, upload privacy, inbox/draft behavior, and quotas are controlled by each platform.
 
-The GitHub Actions checks cover Python syntax and the local server safety regression tests. They do not replace testing the full video pipeline on the target Windows PC.
+The GitHub Actions checks are automated code checks. They do not replace the real-video and real-account tests above. Do not describe the application as production-ready until those machine- and account-dependent checks have passed.
