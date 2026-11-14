@@ -376,7 +376,7 @@ async function startJob(path,name){
 async function importSource(platform){
   const field=$("#"+platform+"-url"),url=field.value.trim();
   if(!url){toast("Paste a "+(platform==="twitch"?"Twitch VOD":"YouTube")+" link first");field.focus();return;}
-  const buttons=$("#home .sourcecard button");buttons.forEach(b=>b.disabled=true);
+  const buttons=$$("#home .sourcecard button");buttons.forEach(b=>b.disabled=true);
   const hj=$("#homejob");hj.style.display="block";
   const label=platform==="twitch"?"Twitch VOD":"YouTube video";
   hj.innerHTML=`<b>Importing ${label}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Connecting…</div><div class="muted" style="margin-top:6px">The video is fetched to your local Videos library. Once imported, ZonClip starts its local clipping pipeline. Only import videos you own or have permission to use.</div>`;
