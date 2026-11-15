@@ -250,7 +250,8 @@ def make_longform(cfg: config.Config, vod: str, out_dir: str | None = None,
 
 
 def _write_md(out_dir, project):
-    lines = [f"# Clips from {os.path.basename(project['vod'])}", "",
+    source_title = (project.get("source") or {}).get("title") or os.path.basename(project["vod"])
+    lines = [f"# Clips from {source_title}", "",
              "Audio is the raw clip audio (no added music). Use the dashboard to trim/edit; "
              "copy the per-platform caption below when you post.", ""]
     for c in project["clips"]:
