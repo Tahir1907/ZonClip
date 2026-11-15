@@ -425,7 +425,7 @@ async function inspectSource(platform){
   }
 }
 async function startYouTubeJob(url,name){
-  const buttons=$("#home .sourcecard button");
+  const buttons=$$("#home .sourcecard button");
   buttons.forEach(b=>b.disabled=true);
   const hj=$("#homejob");hj.style.display="block";
   hj.innerHTML=`<b>Creating clips from ${he(name)}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Starting local YouTube processing…</div><div class="hnotice">ZonClip analyses audio locally, then retrieves only selected video sections. It does not save the complete source video. Long videos can take a while on a CPU-only laptop; no cloud AI credits are required.</div>`;
