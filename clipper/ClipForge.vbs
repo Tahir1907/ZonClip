@@ -28,16 +28,14 @@ End If
 
 ' Create a convenient desktop shortcut the first time this launcher is used.
 shortcutPath = shell.SpecialFolders("Desktop") & "\ClipForge Studio.lnk"
-If Not fso.FileExists(shortcutPath) Then
-    On Error Resume Next
-    Set shortcut = shell.CreateShortcut(shortcutPath)
-    shortcut.TargetPath = WScript.ScriptFullName
-    shortcut.WorkingDirectory = appDir
-    shortcut.Description = "Open ClipForge Studio"
-    shortcut.IconLocation = shell.ExpandEnvironmentStrings("%SystemRoot%") & "\System32\shell32.dll,220"
-    shortcut.Save
-    On Error GoTo 0
-End If
+On Error Resume Next
+Set shortcut = shell.CreateShortcut(shortcutPath)
+shortcut.TargetPath = WScript.ScriptFullName
+shortcut.WorkingDirectory = appDir
+shortcut.Description = "Open ClipForge Studio"
+shortcut.IconLocation = shell.ExpandEnvironmentStrings("%SystemRoot%") & "\System32\shell32.dll,220"
+shortcut.Save
+On Error GoTo 0
 
 ' pythonw.exe keeps the console hidden; dashboard.py opens the native WebView2 window.
 shell.Environment("PROCESS")("PYTHONPATH") = appDir
