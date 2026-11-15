@@ -8,13 +8,14 @@ from __future__ import annotations
 from urllib.parse import urlparse
 
 from .source_import import _validate_url
+from .youtube_source import parse_youtube_url
 
 
 def inspect_source_url(url: str, platform: str) -> dict:
     platform = (platform or "").strip().lower()
     if platform not in ("youtube", "twitch"):
         raise ValueError("Choose YouTube or Twitch.")
-    safe_url = _validate_url(url, platform)
+    safe_url = parse_youtube_url(url)["url"] if platform == "youtube" else _validate_url(url, platform)
     try:
         import yt_dlp
     except ImportError as exc:
