@@ -59,7 +59,7 @@ def _get_model(cfg: config.Config):
         from faster_whisper import WhisperModel
         device, compute = _resolve_device(cfg)
         log(f"[transcribe] loading {cfg.model} on {device} ({compute}) for clip captions ...")
-        _MODEL = WhisperModel(cfg.model, device=device, compute_type=compute, download_root=config.MODEL_DIR)
+        _MODEL = WhisperModel(cfg.model, device=device, compute_type=compute, cpu_threads=cfg.cpu_threads, num_workers=1, download_root=config.MODEL_DIR)
     return _MODEL
 
 
@@ -151,7 +151,8 @@ def transcribe(cfg: config.Config, wav: str, vod: str, force: bool = False, tag:
     log(f"[transcribe] loading {cfg.model} on {device} ({compute}) ...")
     t0 = time.time()
     model = WhisperModel(
-        cfg.model, device=device, compute_type=compute, download_root=config.MODEL_DIR
+        cfg.model, device=device, compute_type=compute, cpu_threads=cfg.cpu_threads,
+        num_workers=1, download_root=config.MODEL_DIR
     )
     log(f"[transcribe] model ready in {time.time()-t0:.0f}s. Transcribing {wav} ...")
 
