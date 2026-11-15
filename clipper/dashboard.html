@@ -362,7 +362,7 @@ async function showHome(){
 function hideHome(){$("#home").style.display="none";}
 async function startJob(path,name){
   const hj=$("#homejob");hj.style.display="block";
-  hj.innerHTML=`<b>Making clips from ${he(name)}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Starting…</div><div class="muted" style="margin-top:6px">Transcribing locally (GPU acceleration when available, otherwise CPU), then rendering. The first run may take longer while the model downloads.</div>`;
+  hj.innerHTML=`<b>Making clips from ${he(name)}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Starting…</div><div class="muted" style="margin-top:6px">Transcribing locally on your CPU, then rendering. The first run may take longer while the local speech model is installed.</div>`;
   hj.scrollIntoView({behavior:"smooth",block:"start"});
   const r=await jpost("/api/new_job",{vod:path});
   if(!r.job){$("#hphase").textContent="Couldn’t start: "+(r.error||"unknown");return;}
