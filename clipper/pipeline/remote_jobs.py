@@ -14,7 +14,7 @@ import subprocess
 import tempfile
 import uuid
 
-from . import branding, config, detect, project as proj, remote_source, render, transcribe, util
+from . import config, remote_source, transcribe, util
 from .util import log
 
 
@@ -75,6 +75,8 @@ def make_youtube_clips(cfg: config.Config, url: str, library_root: str, count: i
         log(f"[youtube] {phase}")
         if progress_cb:
             progress_cb(phase, fraction)
+
+    from . import branding, detect, project as proj, render
 
     count = max(1, min(30, int(count or cfg.clip_count)))
     source = remote_source.resolve_youtube_media(url)
