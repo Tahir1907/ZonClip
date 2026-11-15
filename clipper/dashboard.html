@@ -184,8 +184,13 @@
   /* ---- Home / VOD picker ---- */
   #home{position:fixed;inset:0;background:var(--bg);z-index:400;display:none;overflow:auto;padding:38px 22px}
   #home .hwrap{max-width:880px;margin:0 auto}
-  #home h1{font-size:30px;font-weight:800;margin:0 0 4px}#home h1 .g{color:var(--gold)}
-  #home .hsub{color:var(--muted);margin:0 0 26px}
+  #home .homehead{display:flex;align-items:flex-start;gap:18px;justify-content:space-between;margin-bottom:26px}
+  #home .homebrand h1{font-size:30px;font-weight:800;margin:0 0 4px}#home .homebrand h1 .g{color:var(--gold)}
+  #home .hsub{color:var(--muted);margin:0}
+  #home .homeactions{display:flex;gap:8px;flex-shrink:0}
+  #home .homeactions button{white-space:nowrap}
+  @media(max-width:620px){#home .homehead{flex-direction:column}#home .homeactions{width:100%}#home .homeactions button{flex:1}}
+
   #home h2{font-size:14px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--gold);margin:26px 0 12px}
   #home .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
   #home .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px;display:flex;flex-direction:column;gap:9px}
@@ -199,11 +204,14 @@
   #home .sourcecard h3{font-size:15px;margin:0;color:var(--cream)}#home .sourcecard p{font-size:12px;color:var(--muted);margin:0;min-height:34px}
   #home .sourcecard button{width:100%;margin-top:2px}
   @media(max-width:620px){#home .sourcecards{grid-template-columns:1fr}#home{padding:24px 14px}}
-  #homejob{background:var(--panel);border:1px solid var(--gold);border-radius:13px;padding:18px;margin-bottom:8px;display:none}
+  #homejob{background:linear-gradient(145deg,#1c1928,#171421);border:1px solid #3b3450;border-radius:14px;padding:18px;margin-bottom:12px;display:none;box-shadow:0 8px 26px #0003}
   #homejob b{font-size:15px}
-  .hbar{height:10px;border-radius:6px;background:#ffffff1f;overflow:hidden;margin:12px 0 7px}
-  .hfill{height:100%;width:0;border-radius:6px;background:linear-gradient(90deg,var(--gold),var(--lav));transition:width .4s ease}
-  .hphase{font-size:13px;color:var(--cream)}
+  .hbar{height:10px;border-radius:8px;background:#dcd6ec;overflow:hidden;margin:12px 0 9px}
+  .hfill{height:100%;width:0;border-radius:8px;background:#e7c58a;transition:width .4s ease}
+  .hphase{font-size:13px;color:var(--cream);line-height:1.65}
+  .hphase .hgood{color:#67d893;font-weight:700}
+  .hphase .hwarn{color:#e0b76e}
+  .hnotice{font-size:12px;color:var(--muted);margin-top:7px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -223,10 +231,16 @@
 </div>
 <div class="toast" id="toast"></div>
 <div id="home"><div class="hwrap">
-  <button onclick="quitApp()" title="Stop ZonClip" style="float:right;margin-top:6px">⏻ Quit</button>
-  <button onclick="openConn()" title="Connect TikTok / YouTube and see scheduled posts" style="float:right;margin:6px 8px 0 0">🚀 Posting</button>
-  <h1>Clip<span class="g">Forge</span></h1>
-  <p class="hsub">Pick a stream to make clips from — or reopen a batch you already made.</p>
+  <div class="homehead">
+    <div class="homebrand">
+      <h1>Clip<span class="g">Forge</span></h1>
+      <p class="hsub">Pick a stream to make clips from — or reopen a batch you already made.</p>
+    </div>
+    <div class="homeactions">
+      <button onclick="openConn()" title="Connect accounts and manage scheduled posts">🚀 Posting</button>
+      <button onclick="quitApp()" title="Close ClipForge">🚪 Quit</button>
+    </div>
+  </div>
   <div id="homejob"></div>
   <h2>🔗 Check a video link (no source download)</h2>
   <div class="sourcecards">
@@ -379,7 +393,7 @@ async function inspectSource(platform){
   const buttons=$$("#home .sourcecard button");buttons.forEach(b=>b.disabled=true);
   const hj=$("#homejob");hj.style.display="block";
   const label=platform==="twitch"?"Twitch VOD":"YouTube video";
-  hj.innerHTML=`<b>Checking ${label}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Reading public metadata…</div><div class="muted" style="margin-top:6px">No source video or audio is downloaded or saved. This check does not create clips; link-based clipping is still being integrated.</div>`;
+  hj.innerHTML=`<b>Checking ${label}...</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Reading public metadata...</div><div class="hnotice">No source video or audio is downloaded or saved. This check does not create clips; link-based clipping is still being integrated.</div>`;
   hj.scrollIntoView({behavior:"smooth",block:"start"});
   let r;
   try{r=await jpost("/api/inspect_url",{platform,url});}
@@ -389,7 +403,8 @@ async function inspectSource(platform){
   const s=r.source,d=s.duration?fmtHMS(s.duration):"Duration unavailable";
   const live=s.is_live?"Live now":s.is_upcoming?"Upcoming stream":"Completed video/VOD";
   $("#hfill").style.width="100%";
-  $("#hphase").innerHTML=`<b>${he(s.title)}</b><br>${he(s.creator||"Creator unavailable")} · ${he(d)} · ${he(live)}<br>Captions: ${s.has_captions?"available":"not detected"}<br><span style="color:var(--ok)">✓ Metadata checked. No media downloaded.</span><br><span style="color:var(--pending)">Link-to-clips processing is not ready yet; use a video already in your local library to test the existing clipping editor.</span>`;
+  $("#hfill").style.width="96%";
+  $("#hphase").innerHTML=`<b>${he(s.title)}</b><br>${he(s.creator||"Creator unavailable")} · ${he(d)} · ${he(live)}<br>Captions: ${s.has_captions?"available":"not detected"}<br><span class="hgood">✓ Metadata checked. No media downloaded.</span><br><span class="hwarn">Link-to-clips processing is not ready yet; use a video already in your local library to test the existing clipping editor.</span>`;
   field.value=url;
 }
 async function openJob(dir){const r=await jpost("/api/open_job",{dir});if(r&&r.error){toast(r.error);return;}S.curId=null;hideHome();load();}
