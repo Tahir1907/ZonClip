@@ -31,6 +31,14 @@ class LaptopProfileTests(unittest.TestCase):
                              "acodec": "mp4a", "format_id": "18"})
         self.assertEqual(got["media_url"], "https://media.example/a.mp4")
 
+    def test_selects_single_progressive_requested_format(self):
+        got = _media_tracks({"requested_formats": [
+            {"url": "https://media.example/progressive", "vcodec": "avc1", "acodec": "mp4a",
+             "format_id": "18"}
+        ]})
+        self.assertEqual(got["media_url"], "https://media.example/progressive")
+        self.assertNotIn("video_url", got)
+
     def test_selects_separate_adaptive_streams(self):
         got = _media_tracks({"requested_formats": [
             {"url": "https://media.example/video", "vcodec": "avc1", "acodec": "none",
