@@ -390,10 +390,10 @@ async function startJob(path,name){
 async function inspectSource(platform){
   const field=$("#"+platform+"-url"),url=field.value.trim();
   if(!url){toast("Paste a "+(platform==="twitch"?"Twitch VOD":"YouTube")+" link first");field.focus();return;}
-  const buttons=$$("#home .sourcecard button");buttons.forEach(b=>b.disabled=true);
+  const buttons=$("#home .sourcecard button");buttons.forEach(b=>b.disabled=true);
   const hj=$("#homejob");hj.style.display="block";
   const label=platform==="twitch"?"Twitch VOD":"YouTube video";
-  hj.innerHTML=`<b>Checking ${label}...</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Reading public metadata...</div><div class="hnotice">No source video or audio is downloaded or saved. This check does not create clips; link-based clipping is still being integrated.</div>`;
+  hj.innerHTML=`<b>Checking ${label}...</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Reading public metadata...</div><div class="hnotice">Metadata checks do not download media. Link processing retrieves audio for local analysis and only selected short video sections. Use videos you own or have permission to clip.</div>`;
   hj.scrollIntoView({behavior:"smooth",block:"start"});
   let r;
   try{r=await jpost("/api/inspect_url",{platform,url});}
@@ -402,10 +402,41 @@ async function inspectSource(platform){
   if(!r.ok||!r.source){$("#hphase").innerHTML='<span style="color:var(--bad)">Check failed: '+he(r.error||"Unknown error")+'</span>';return;}
   const s=r.source,d=s.duration?fmtHMS(s.duration):"Duration unavailable";
   const live=s.is_live?"Live now":s.is_upcoming?"Upcoming stream":"Completed video/VOD";
-  $("#hfill").style.width="100%";
   $("#hfill").style.width="96%";
-  $("#hphase").innerHTML=`<b>${he(s.title)}</b><br>${he(s.creator||"Creator unavailable")} · ${he(d)} · ${he(live)}<br>Captions: ${s.has_captions?"available":"not detected"}<br><span class="hgood">✓ Metadata checked. No media downloaded.</span><br><span class="hwarn">Link-to-clips processing is not ready yet; use a video already in your local library to test the existing clipping editor.</span>`;
+  $("#hphase").innerHTML=`<b>${he(s.title)}</b><br>${he(s.creator||"Creator unavailable")} · ${he(d)} · ${he(live)}<br>Captions: ${s.has_captions?"available":"not detected"}<br><span class="hgood">✓ Metadata checked. No media downloaded.</span>`;
   field.value=url;
+  if(platform==="youtube"&&!s.is_live&&!s.is_upcoming){
+    const create=document.createElement("button");
+    create.className="primary";
+    create.style.marginTop="12px";
+    create.textContent="🎬 Create clips from this YouTube video";
+    create.onclick=()=>startYouTubeJob(url,s.title||"YouTube video");
+    hj.appendChild(create);
+  }else if(platform==="twitch"&&!s.is_live&&!s.is_upcoming){
+    const note=document.createElement("div");
+    note.className="hnotice";
+    note.textContent="Completed Twitch VOD clipping is the next platform phase. This check does not create clips yet.";
+    hj.appendChild(note);
+  }else{
+    const note=document.createElement("div");
+    note.className="hnotice";
+    note.textContent="Live and upcoming streams are not part of the completed-video workflow yet.";
+    hj.appendChild(note);
+  }
+}
+async function startYouTubeJob(url,name){
+  const hj=$("#homejob");hj.style.display="block";
+  hj.innerHTML=`<b>Creating clips from ${he(name)}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Starting local YouTube processing…</div><div class="hnotice">ClipForge analyses audio locally, then retrieves only selected video sections. It does not save the complete source video. Processing time depends on video length and your CPU.</div>`;
+  hj.scrollIntoView({behavior:"smooth",block:"start"});
+  const r=await jpost("/api/youtube_clips",{url});
+  if(!r.job){$("#hphase").textContent="Could not start: "+(r.error||"unknown");return;}
+  const iv=setInterval(async()=>{
+    let s;try{s=await jget("/api/job/"+r.job);}catch(e){return;}
+    $("#hphase").textContent=s.phase||s.status||"";
+    $("#hfill").style.width=(s.progress||0)+"%";
+    if(s.status==="done"){clearInterval(iv);$("#hfill").style.width="100%";S.curId=null;hideHome();load();}
+    else if(s.status==="error"){clearInterval(iv);$("#hphase").innerHTML='<span style="color:var(--bad)">Failed: '+he(s.error||"")+'</span>';}
+  },1500);
 }
 async function openJob(dir){const r=await jpost("/api/open_job",{dir});if(r&&r.error){toast(r.error);return;}S.curId=null;hideHome();load();}
 async function startLongform(path,name){
