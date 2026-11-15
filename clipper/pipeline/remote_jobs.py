@@ -85,9 +85,11 @@ def make_youtube_clips(cfg: config.Config, url: str, library_root: str, count: i
         raise RuntimeError("Videos longer than 12 hours are not supported in this first version.")
 
     output_dir = _new_output_dir(library_root, source["title"], source["video_id"])
-    proxy_path = os.path.join(output_dir, "source-preview.mp4")
+    util.ensure_dirs(config.WORK_DIR)
+    run_id = uuid.uuid4().hex[:8]
+    proxy_path = os.path.join(output_dir, f"source-preview-{source['video_id']}-{run_id}.mp4")
     temp_dir = tempfile.mkdtemp(prefix=f"youtube_{source['video_id']}_", dir=config.WORK_DIR)
-    analysis_stub = os.path.join(temp_dir, f"analysis_{source['video_id']}_{uuid.uuid4().hex[:8]}.mp4")
+    analysis_stub = os.path.join(temp_dir, f"analysis_{source['video_id']}_{run_id}.mp4")
     analysis_wav = os.path.join(temp_dir, "analysis-audio.wav")
     analysis_transcript_path = None
     completed = False
@@ -97,8 +99,8 @@ def make_youtube_clips(cfg: config.Config, url: str, library_root: str, count: i
         remote_source.extract_audio_track(source, analysis_wav)
 
         progress("Transcribing locally on your CPU", 0.15)
-        transcript = transcribe.transcribe(cfg, analysis_wav, analysis_stub, force=True)
         analysis_transcript_path = transcribe.transcript_path(cfg, analysis_stub)
+        transcript = transcribe.transcribe(cfg, analysis_wav, analysis_stub, force=True)
         if not transcript.get("words"):
             raise RuntimeError("No speech was detected. This first version needs a usable spoken-audio track.")
 
