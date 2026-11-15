@@ -34,7 +34,15 @@ def _media_tracks(info: dict) -> dict:
     video = next((f for f in requested if f.get("vcodec") not in (None, "none") and f.get("url")), None)
     audio = next((f for f in requested if f.get("acodec") not in (None, "none") and f.get("url")), None)
 
-    # yt-dlp returns requested_formats for a video+audio adaptive selection.
+    # yt-dlp returns requested_formats for adaptive video+audio selections. A one-item
+    # progressive requested_formats list can contain both codecs on the same URL.
+    if video and audio and video["url"] == audio["url"]:
+        return {
+            "media_url": video["url"],
+            "http_headers": video.get("http_headers") or info.get("http_headers") or {},
+            "protocol": video.get("protocol") or info.get("protocol"),
+            "format_id": video.get("format_id") or info.get("format_id"),
+        }
     if video and audio:
         return {
             "video_url": video["url"],
