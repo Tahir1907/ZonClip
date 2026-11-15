@@ -425,17 +425,18 @@ async function inspectSource(platform){
   }
 }
 async function startYouTubeJob(url,name){
+  $("#home .sourcecard button").forEach(b=>b.disabled=true);
   const hj=$("#homejob");hj.style.display="block";
   hj.innerHTML=`<b>Creating clips from ${he(name)}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Starting local YouTube processing…</div><div class="hnotice">ClipForge analyses audio locally, then retrieves only selected video sections. It does not save the complete source video. Processing time depends on video length and your CPU.</div>`;
   hj.scrollIntoView({behavior:"smooth",block:"start"});
   const r=await jpost("/api/youtube_clips",{url});
-  if(!r.job){$("#hphase").textContent="Could not start: "+(r.error||"unknown");return;}
+  if(!r.job){$("#hphase").textContent="Could not start: "+(r.error||"unknown");$("#home .sourcecard button").forEach(b=>b.disabled=false);return;}
   const iv=setInterval(async()=>{
     let s;try{s=await jget("/api/job/"+r.job);}catch(e){return;}
     $("#hphase").textContent=s.phase||s.status||"";
     $("#hfill").style.width=(s.progress||0)+"%";
     if(s.status==="done"){clearInterval(iv);$("#hfill").style.width="100%";S.curId=null;hideHome();load();}
-    else if(s.status==="error"){clearInterval(iv);$("#hphase").innerHTML='<span style="color:var(--bad)">Failed: '+he(s.error||"")+'</span>';}
+    else if(s.status==="error"){clearInterval(iv);$("#hphase").innerHTML='<span style="color:var(--bad)">Failed: '+he(s.error||"")+'</span>';$("#home .sourcecard button").forEach(b=>b.disabled=false);}
   },1500);
 }
 async function openJob(dir){const r=await jpost("/api/open_job",{dir});if(r&&r.error){toast(r.error);return;}S.curId=null;hideHome();load();}
