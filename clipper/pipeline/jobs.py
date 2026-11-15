@@ -154,7 +154,7 @@ def make_clips(cfg: config.Config, vod: str, out_dir: str | None = None, count: 
 
     prog("Extracting audio", 0.0)
     wav, tag = ensure_wav(cfg, vod, limit_secs)
-    prog("Transcribing on GPU")
+    prog("Transcribing locally on CPU")
     transcript = transcribe.transcribe(cfg, wav, vod, force=force_transcribe, tag=tag)
     if limit_secs:
         transcript = slice_transcript(transcript, limit_secs)
