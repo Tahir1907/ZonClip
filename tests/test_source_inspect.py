@@ -9,6 +9,7 @@ from clipper.pipeline.source_inspect import inspect_source_url
 
 class FakeYoutubeDL:
     last_options = None
+    last_download_argument = None
     def __init__(self, options):
         type(self).last_options = options
     def __enter__(self):
@@ -16,7 +17,7 @@ class FakeYoutubeDL:
     def __exit__(self, *args):
         return False
     def extract_info(self, url, download=False):
-        self.download_argument = download
+        type(self).last_download_argument = download
         return {
             "title": "Test VOD", "channel": "Test creator", "duration": 120,
             "live_status": "not_live", "subtitles": {"en": []},
@@ -40,6 +41,7 @@ class MetadataOnlyTests(unittest.TestCase):
         self.assertTrue(result["has_captions"])
         self.assertTrue(FakeYoutubeDL.last_options["skip_download"])
         self.assertTrue(FakeYoutubeDL.last_options["noplaylist"])
+        self.assertIs(FakeYoutubeDL.last_download_argument, False)
 
     def test_rejects_invalid_platform(self):
         with self.assertRaises(ValueError):
