@@ -228,19 +228,19 @@
   <h1>Clip<span class="g">Forge</span></h1>
   <p class="hsub">Pick a stream to make clips from — or reopen a batch you already made.</p>
   <div id="homejob"></div>
-  <h2>🔗 Import a video link</h2>
+  <h2>🔗 Check a video link (no source download)</h2>
   <div class="sourcecards">
     <section class="sourcecard twitch">
       <h3>🟣 Twitch VOD</h3>
-      <p>Paste a completed Twitch VOD link. ZonClip imports it to your PC, then starts local clipping.</p>
+      <p>Check a completed Twitch VOD link. This checks metadata only and does not download the recording.</p>
       <input id="twitch-url" type="url" placeholder="https://www.twitch.tv/videos/…" autocomplete="off">
-      <button class="primary" onclick="importSource('twitch')">Import Twitch VOD →</button>
+      <button class="primary" onclick="inspectSource('twitch')">Check Twitch link →</button>
     </section>
     <section class="sourcecard youtube">
       <h3>▶ YouTube video</h3>
-      <p>Paste a YouTube video link. Public videos you have permission to use can be imported for local clipping.</p>
+      <p>Check a YouTube video or Shorts link. This checks metadata only and does not download video or audio.</p>
       <input id="youtube-url" type="url" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off">
-      <button class="primary" onclick="importSource('youtube')">Import YouTube video →</button>
+      <button class="primary" onclick="inspectSource('youtube')">Check YouTube link →</button>
     </section>
   </div>
   <h2>🎬 Make clips from a video</h2>
@@ -373,30 +373,24 @@ async function startJob(path,name){
   },1200);
 }
 
-async function importSource(platform){
+async function inspectSource(platform){
   const field=$("#"+platform+"-url"),url=field.value.trim();
   if(!url){toast("Paste a "+(platform==="twitch"?"Twitch VOD":"YouTube")+" link first");field.focus();return;}
   const buttons=$$("#home .sourcecard button");buttons.forEach(b=>b.disabled=true);
   const hj=$("#homejob");hj.style.display="block";
   const label=platform==="twitch"?"Twitch VOD":"YouTube video";
-  hj.innerHTML=`<b>Importing ${label}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Connecting…</div><div class="muted" style="margin-top:6px">The video is fetched to your local Videos library. Once imported, ZonClip starts its local clipping pipeline. Only import videos you own or have permission to use.</div>`;
+  hj.innerHTML=`<b>Checking ${label}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Reading public metadata…</div><div class="muted" style="margin-top:6px">No source video or audio is downloaded or saved. This check does not create clips; link-based clipping is still being integrated.</div>`;
   hj.scrollIntoView({behavior:"smooth",block:"start"});
   let r;
-  try{r=await jpost("/api/import_url",{platform,url});}
-  catch(e){$("#hphase").textContent="Could not start the import: "+e.message;buttons.forEach(b=>b.disabled=false);return;}
-  if(!r.job){$("#hphase").textContent="Could not import: "+(r.error||"unknown error");buttons.forEach(b=>b.disabled=false);return;}
-  const iv=setInterval(async()=>{
-    let s;try{s=await jget("/api/job/"+r.job);}catch(e){return;}
-    $("#hphase").textContent=s.phase||s.status||"";
-    $("#hfill").style.width=(s.progress||0)+"%";
-    if(s.status==="done"){
-      clearInterval(iv);field.value="";buttons.forEach(b=>b.disabled=false);
-      await startJob(s.path,s.name||label);
-    }else if(s.status==="error"){
-      clearInterval(iv);$("#hphase").innerHTML='<span style="color:var(--bad)">Import failed: '+he(s.error||"Unknown error")+'</span>';
-      buttons.forEach(b=>b.disabled=false);
-    }
-  },1200);
+  try{r=await jpost("/api/inspect_url",{platform,url});}
+  catch(e){$("#hphase").textContent="Could not check the link: "+e.message;buttons.forEach(b=>b.disabled=false);return;}
+  buttons.forEach(b=>b.disabled=false);
+  if(!r.ok||!r.source){$("#hphase").innerHTML='<span style="color:var(--bad)">Check failed: '+he(r.error||"Unknown error")+'</span>';return;}
+  const s=r.source,d=s.duration?fmtHMS(s.duration):"Duration unavailable";
+  const live=s.is_live?"Live now":s.is_upcoming?"Upcoming stream":"Completed video/VOD";
+  $("#hfill").style.width="100%";
+  $("#hphase").innerHTML=`<b>${he(s.title)}</b><br>${he(s.creator||"Creator unavailable")} · ${he(d)} · ${he(live)}<br>Captions: ${s.has_captions?"available":"not detected"}<br><span style="color:var(--ok)">✓ Metadata checked. No media downloaded.</span><br><span style="color:var(--pending)">Link-to-clips processing is not ready yet; use a video already in your local library to test the existing clipping editor.</span>`;
+  field.value=url;
 }
 async function openJob(dir){const r=await jpost("/api/open_job",{dir});if(r&&r.error){toast(r.error);return;}S.curId=null;hideHome();load();}
 async function startLongform(path,name){
