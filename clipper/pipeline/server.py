@@ -902,14 +902,26 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"ok": False, "error": "empty key"}, 400)
                 util.set_api_key(k)
                 return self._json({"ok": True, "ai_available": bool(util.get_api_key())})
-            if p == "/api/import_url":
+            if p == "/api/inspect_url":
                 url = (body.get("url") or "").strip()
                 platform = (body.get("platform") or "").strip().lower()
                 if platform not in ("twitch", "youtube"):
                     return self._json({"error": "Choose Twitch or YouTube."}, 400)
                 if not url:
                     return self._json({"error": "Paste a video link first."}, 400)
-                return self._json({"job": STATE.start_source_import(url, platform)})
+                from .source_inspect import inspect_source_url
+                try:
+                    info = inspect_source_url(url, platform)
+                except ValueError as e:
+                    return self._json({"error": str(e)}, 400)
+                except Exception as e:  # noqa: BLE001
+                    log(f"[source inspect] {platform} inspection failed: {e}")
+                    return self._json({"error": str(e) or "Could not inspect that link."}, 502)
+                return self._json({"ok": True, "source": info})
+            if p == "/api/import_url":
+                return self._json({
+                    "error": "Full-source downloads are disabled in this build. Use Check link for metadata-only inspection; link-to-clips processing is not integrated yet."
+                }, 410)
             if p == "/api/new_job":
                 vod = body.get("vod") or ""
                 if not STATE.valid_vod(vod):
