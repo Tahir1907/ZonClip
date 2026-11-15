@@ -112,6 +112,11 @@ def make_youtube_clips(cfg: config.Config, url: str, library_root: str, count: i
         if not selected:
             raise RuntimeError("No suitable highlights were found in this video.")
 
+        # Transcription can take long enough for signed media URLs to expire. Resolve fresh
+        # short-lived URLs before fetching the selected video sections.
+        progress("Refreshing temporary YouTube media access", 0.62)
+        source = remote_source.resolve_youtube_media(url)
+
         # Download only the selected time ranges, with a little context for editor trimming.
         pad_s = 8.0
         ranges = []
