@@ -107,7 +107,7 @@ $env:PYTHONPATH = (Get-Location)
 & "$env:USERPROFILE\clipforge\.venv\Scripts\python.exe" dashboard.py
 ```
 
-…or just double-click **`clipper\ClipForge.bat`**. ZonClip Studio opens as its own desktop window.
+…or double-click **`clipper\ClipForge.vbs`** for a quiet launch with no terminal window. The first launch automatically creates a **ClipForge Studio** shortcut on your Windows Desktop; after that, just double-click the desktop icon. It uses the existing local virtual environment and opens the native WebView2 Studio window. Keep `ClipForge.bat` as a console-visible troubleshooting launcher.
 
 1. Drop your stream recordings (`.mp4`) in your **Videos** folder (or point `CLIPFORGE_LIBRARY`
    elsewhere). They appear on the Home screen.
