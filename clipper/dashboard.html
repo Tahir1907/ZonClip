@@ -184,8 +184,13 @@
   /* ---- Home / VOD picker ---- */
   #home{position:fixed;inset:0;background:var(--bg);z-index:400;display:none;overflow:auto;padding:38px 22px}
   #home .hwrap{max-width:880px;margin:0 auto}
-  #home h1{font-size:30px;font-weight:800;margin:0 0 4px}#home h1 .g{color:var(--gold)}
-  #home .hsub{color:var(--muted);margin:0 0 26px}
+  #home .homehead{display:flex;align-items:flex-start;gap:18px;justify-content:space-between;margin-bottom:26px}
+  #home .homebrand h1{font-size:30px;font-weight:800;margin:0 0 4px}#home .homebrand h1 .g{color:var(--gold)}
+  #home .hsub{color:var(--muted);margin:0}
+  #home .homeactions{display:flex;gap:8px;flex-shrink:0}
+  #home .homeactions button{white-space:nowrap}
+  @media(max-width:620px){#home .homehead{flex-direction:column}#home .homeactions{width:100%}#home .homeactions button{flex:1}}
+
   #home h2{font-size:14px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--gold);margin:26px 0 12px}
   #home .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
   #home .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px;display:flex;flex-direction:column;gap:9px}
@@ -199,11 +204,14 @@
   #home .sourcecard h3{font-size:15px;margin:0;color:var(--cream)}#home .sourcecard p{font-size:12px;color:var(--muted);margin:0;min-height:34px}
   #home .sourcecard button{width:100%;margin-top:2px}
   @media(max-width:620px){#home .sourcecards{grid-template-columns:1fr}#home{padding:24px 14px}}
-  #homejob{background:var(--panel);border:1px solid var(--gold);border-radius:13px;padding:18px;margin-bottom:8px;display:none}
+  #homejob{background:linear-gradient(145deg,#1c1928,#171421);border:1px solid #3b3450;border-radius:14px;padding:18px;margin-bottom:12px;display:none;box-shadow:0 8px 26px #0003}
   #homejob b{font-size:15px}
-  .hbar{height:10px;border-radius:6px;background:#ffffff1f;overflow:hidden;margin:12px 0 7px}
-  .hfill{height:100%;width:0;border-radius:6px;background:linear-gradient(90deg,var(--gold),var(--lav));transition:width .4s ease}
-  .hphase{font-size:13px;color:var(--cream)}
+  .hbar{height:10px;border-radius:8px;background:#dcd6ec;overflow:hidden;margin:12px 0 9px}
+  .hfill{height:100%;width:0;border-radius:8px;background:#e7c58a;transition:width .4s ease}
+  .hphase{font-size:13px;color:var(--cream);line-height:1.65}
+  .hphase .hgood{color:#67d893;font-weight:700}
+  .hphase .hwarn{color:#e0b76e}
+  .hnotice{font-size:12px;color:var(--muted);margin-top:7px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -223,24 +231,30 @@
 </div>
 <div class="toast" id="toast"></div>
 <div id="home"><div class="hwrap">
-  <button onclick="quitApp()" title="Stop ZonClip" style="float:right;margin-top:6px">⏻ Quit</button>
-  <button onclick="openConn()" title="Connect TikTok / YouTube and see scheduled posts" style="float:right;margin:6px 8px 0 0">🚀 Posting</button>
-  <h1>Clip<span class="g">Forge</span></h1>
-  <p class="hsub">Pick a stream to make clips from — or reopen a batch you already made.</p>
+  <div class="homehead">
+    <div class="homebrand">
+      <h1>Clip<span class="g">Forge</span></h1>
+      <p class="hsub">Pick a stream to make clips from — or reopen a batch you already made.</p>
+    </div>
+    <div class="homeactions">
+      <button onclick="openConn()" title="Connect accounts and manage scheduled posts">🚀 Posting</button>
+      <button onclick="quitApp()" title="Close ClipForge">🚪 Quit</button>
+    </div>
+  </div>
   <div id="homejob"></div>
-  <h2>🔗 Import a video link</h2>
+  <h2>🔗 Check a video link (no source download)</h2>
   <div class="sourcecards">
     <section class="sourcecard twitch">
       <h3>🟣 Twitch VOD</h3>
-      <p>Paste a completed Twitch VOD link. ZonClip imports it to your PC, then starts local clipping.</p>
+      <p>Check a completed Twitch VOD link. This checks metadata only and does not download the recording.</p>
       <input id="twitch-url" type="url" placeholder="https://www.twitch.tv/videos/…" autocomplete="off">
-      <button class="primary" onclick="importSource('twitch')">Import Twitch VOD →</button>
+      <button class="primary" onclick="inspectSource('twitch')">Check Twitch link →</button>
     </section>
     <section class="sourcecard youtube">
       <h3>▶ YouTube video</h3>
-      <p>Paste a YouTube video link. Public videos you have permission to use can be imported for local clipping.</p>
+      <p>Check a YouTube video or Shorts link. This checks metadata only and does not download video or audio.</p>
       <input id="youtube-url" type="url" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off">
-      <button class="primary" onclick="importSource('youtube')">Import YouTube video →</button>
+      <button class="primary" onclick="inspectSource('youtube')">Check YouTube link →</button>
     </section>
   </div>
   <h2>🎬 Make clips from a video</h2>
@@ -362,7 +376,7 @@ async function showHome(){
 function hideHome(){$("#home").style.display="none";}
 async function startJob(path,name){
   const hj=$("#homejob");hj.style.display="block";
-  hj.innerHTML=`<b>Making clips from ${he(name)}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Starting…</div><div class="muted" style="margin-top:6px">Transcribing locally (GPU acceleration when available, otherwise CPU), then rendering. The first run may take longer while the model downloads.</div>`;
+  hj.innerHTML=`<b>Making clips from ${he(name)}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Starting…</div><div class="muted" style="margin-top:6px">Transcribing locally on your CPU, then rendering. The first run may take longer while the local speech model is installed.</div>`;
   hj.scrollIntoView({behavior:"smooth",block:"start"});
   const r=await jpost("/api/new_job",{vod:path});
   if(!r.job){$("#hphase").textContent="Couldn’t start: "+(r.error||"unknown");return;}
@@ -373,30 +387,72 @@ async function startJob(path,name){
   },1200);
 }
 
-async function importSource(platform){
+async function inspectSource(platform){
   const field=$("#"+platform+"-url"),url=field.value.trim();
   if(!url){toast("Paste a "+(platform==="twitch"?"Twitch VOD":"YouTube")+" link first");field.focus();return;}
   const buttons=$$("#home .sourcecard button");buttons.forEach(b=>b.disabled=true);
   const hj=$("#homejob");hj.style.display="block";
   const label=platform==="twitch"?"Twitch VOD":"YouTube video";
-  hj.innerHTML=`<b>Importing ${label}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Connecting…</div><div class="muted" style="margin-top:6px">The video is fetched to your local Videos library. Once imported, ZonClip starts its local clipping pipeline. Only import videos you own or have permission to use.</div>`;
+  hj.innerHTML=`<b>Checking ${label}...</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Reading public metadata...</div><div class="hnotice">Metadata checks do not download media. Link processing retrieves audio for local analysis and only selected short video sections. Use videos you own or have permission to clip.</div>`;
   hj.scrollIntoView({behavior:"smooth",block:"start"});
   let r;
-  try{r=await jpost("/api/import_url",{platform,url});}
-  catch(e){$("#hphase").textContent="Could not start the import: "+e.message;buttons.forEach(b=>b.disabled=false);return;}
-  if(!r.job){$("#hphase").textContent="Could not import: "+(r.error||"unknown error");buttons.forEach(b=>b.disabled=false);return;}
+  try{r=await jpost("/api/inspect_url",{platform,url});}
+  catch(e){$("#hphase").textContent="Could not check the link: "+e.message;buttons.forEach(b=>b.disabled=false);return;}
+  buttons.forEach(b=>b.disabled=false);
+  if(!r.ok||!r.source){$("#hphase").innerHTML='<span style="color:var(--bad)">Check failed: '+he(r.error||"Unknown error")+'</span>';return;}
+  const s=r.source,d=s.duration?fmtHMS(s.duration):"Duration unavailable";
+  const live=s.is_live?"Live now":s.is_upcoming?"Upcoming stream":"Completed video/VOD";
+  $("#hfill").style.width="96%";
+  $("#hphase").innerHTML=`<b>${he(s.title)}</b><br>${he(s.creator||"Creator unavailable")} · ${he(d)} · ${he(live)}<br>Captions: ${s.has_captions?"available":"not detected"}<br><span class="hgood">✓ Metadata checked. No media downloaded.</span>`;
+  field.value=url;
+  if(platform==="youtube"&&!s.is_live&&!s.is_upcoming){
+    const create=document.createElement("button");
+    create.className="primary";
+    create.style.marginTop="12px";
+    create.textContent="🎬 Create clips from this YouTube video";
+    create.onclick=()=>startYouTubeJob(url,s.title||"YouTube video");
+    hj.appendChild(create);
+  }else if(platform==="twitch"&&!s.is_live&&!s.is_upcoming){
+    const note=document.createElement("div");
+    note.className="hnotice";
+    note.textContent="Completed Twitch VOD clipping is the next platform phase. This check does not create clips yet.";
+    hj.appendChild(note);
+  }else{
+    const note=document.createElement("div");
+    note.className="hnotice";
+    note.textContent="Live and upcoming streams are not part of the completed-video workflow yet.";
+    hj.appendChild(note);
+  }
+}
+async function startYouTubeJob(url,name){
+  const buttons=$$("#home .sourcecard button");
+  buttons.forEach(b=>b.disabled=true);
+  const hj=$("#homejob");hj.style.display="block";
+  hj.innerHTML=`<b>Creating clips from ${he(name)}…</b><div class="hbar"><div class="hfill" id="hfill"></div></div><div class="hphase" id="hphase">Starting local YouTube processing…</div><div class="hnotice">ZonClip analyses audio locally, then retrieves only selected video sections. It does not save the complete source video. Long videos can take a while on a CPU-only laptop; no cloud AI credits are required.</div>`;
+  hj.scrollIntoView({behavior:"smooth",block:"start"});
+  let r;
+  try{r=await jpost("/api/youtube_clips",{url});}
+  catch(e){$("#hphase").textContent="Could not contact ZonClip: "+(e.message||"Check that the app is running.");buttons.forEach(b=>b.disabled=false);return;}
+  if(!r||!r.job){
+    $("#hphase").textContent="Could not start: "+((r&&r.error)||"The server did not return a job ID.");
+    buttons.forEach(b=>b.disabled=false);return;
+  }
   const iv=setInterval(async()=>{
-    let s;try{s=await jget("/api/job/"+r.job);}catch(e){return;}
-    $("#hphase").textContent=s.phase||s.status||"";
+    let s;
+    try{s=await jget("/api/job/"+encodeURIComponent(r.job));}
+    catch(e){$("#hphase").textContent="Connection interrupted while checking progress. Retrying…";return;}
+    $("#hphase").textContent=s.phase||s.status||"Processing…";
     $("#hfill").style.width=(s.progress||0)+"%";
     if(s.status==="done"){
-      clearInterval(iv);field.value="";buttons.forEach(b=>b.disabled=false);
-      await startJob(s.path,s.name||label);
+      clearInterval(iv);$("#hfill").style.width="100%";
+      $("#hphase").textContent="Clips ready. Opening the editor…";
+      S.curId=null;hideHome();load();
     }else if(s.status==="error"){
-      clearInterval(iv);$("#hphase").innerHTML='<span style="color:var(--bad)">Import failed: '+he(s.error||"Unknown error")+'</span>';
+      clearInterval(iv);
+      $("#hphase").innerHTML='<span style="color:var(--bad)">Failed: '+he(s.error||"Unknown processing error")+'</span>';
       buttons.forEach(b=>b.disabled=false);
     }
-  },1200);
+  },1500);
 }
 async function openJob(dir){const r=await jpost("/api/open_job",{dir});if(r&&r.error){toast(r.error);return;}S.curId=null;hideHome();load();}
 async function startLongform(path,name){

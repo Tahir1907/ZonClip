@@ -48,8 +48,17 @@ def _model_tag(cfg) -> str:
     return cfg.model
 
 
-def _clipwords_key(cfg, start: float, end: float) -> str:
-    return hashlib.md5(f"{_model_tag(cfg)}|{_engine(cfg)}|{start:.2f}|{end:.2f}".encode()).hexdigest()[:16]
+def _clipwords_key(cfg, start: float, end: float, wav: str = "") -> str:
+    """Include the source WAV identity so equal timestamps from different videos never share captions."""
+    identity = os.path.abspath(wav) if wav else ""
+    try:
+        stat = os.stat(wav) if wav else None
+        if stat:
+            identity += f"|{stat.st_size}|{stat.st_mtime_ns}"
+    except OSError:
+        pass
+    key = f"{_model_tag(cfg)}|{_engine(cfg)}|{identity}|{start:.2f}|{end:.2f}"
+    return hashlib.md5(key.encode()).hexdigest()[:16]
 
 
 def _get_model(cfg: config.Config):
@@ -59,7 +68,7 @@ def _get_model(cfg: config.Config):
         from faster_whisper import WhisperModel
         device, compute = _resolve_device(cfg)
         log(f"[transcribe] loading {cfg.model} on {device} ({compute}) for clip captions ...")
-        _MODEL = WhisperModel(cfg.model, device=device, compute_type=compute, download_root=config.MODEL_DIR)
+        _MODEL = WhisperModel(cfg.model, device=device, compute_type=compute, cpu_threads=cfg.cpu_threads, num_workers=1, download_root=config.MODEL_DIR)
     return _MODEL
 
 
@@ -81,7 +90,7 @@ def clip_words(cfg: config.Config, wav: str, start: float, end: float) -> list:
         from . import transcribe_whispercpp as _w
         return _w.clip_words(cfg, wav, start, end)
     end = max(start + 0.5, end)
-    key = _clipwords_key(cfg, start, end)
+    key = _clipwords_key(cfg, start, end, wav)
     cpath = os.path.join(config.WORK_DIR, "clipwords", key + ".json")
     if os.path.exists(cpath):
         return util.read_json(cpath)
@@ -151,7 +160,8 @@ def transcribe(cfg: config.Config, wav: str, vod: str, force: bool = False, tag:
     log(f"[transcribe] loading {cfg.model} on {device} ({compute}) ...")
     t0 = time.time()
     model = WhisperModel(
-        cfg.model, device=device, compute_type=compute, download_root=config.MODEL_DIR
+        cfg.model, device=device, compute_type=compute, cpu_threads=cfg.cpu_threads,
+        num_workers=1, download_root=config.MODEL_DIR
     )
     log(f"[transcribe] model ready in {time.time()-t0:.0f}s. Transcribing {wav} ...")
 

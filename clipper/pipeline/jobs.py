@@ -154,7 +154,7 @@ def make_clips(cfg: config.Config, vod: str, out_dir: str | None = None, count: 
 
     prog("Extracting audio", 0.0)
     wav, tag = ensure_wav(cfg, vod, limit_secs)
-    prog("Transcribing on GPU")
+    prog("Transcribing locally on CPU")
     transcript = transcribe.transcribe(cfg, wav, vod, force=force_transcribe, tag=tag)
     if limit_secs:
         transcript = slice_transcript(transcript, limit_secs)
@@ -250,7 +250,8 @@ def make_longform(cfg: config.Config, vod: str, out_dir: str | None = None,
 
 
 def _write_md(out_dir, project):
-    lines = [f"# Clips from {os.path.basename(project['vod'])}", "",
+    source_title = (project.get("source") or {}).get("title") or os.path.basename(project["vod"])
+    lines = [f"# Clips from {source_title}", "",
              "Audio is the raw clip audio (no added music). Use the dashboard to trim/edit; "
              "copy the per-platform caption below when you post.", ""]
     for c in project["clips"]:

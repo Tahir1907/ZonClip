@@ -127,10 +127,12 @@ class State:
         n, vod = 0, ""
         try:
             pj = proj.load_project(d)
-            n, vod = len(pj.get("clips", [])), pj.get("vod", "")
+            source = pj.get("source") or {}
+            n = len(pj.get("clips", []))
+            vod = source.get("title") or os.path.basename(pj.get("vod", ""))
         except Exception:  # noqa: BLE001
             pass
-        return {"dir": d, "name": os.path.basename(d), "vod": os.path.basename(vod),
+        return {"dir": d, "name": os.path.basename(d), "vod": vod,
                 "clips": n, "mtime": os.path.getmtime(os.path.join(d, "project.json"))}
 
 
@@ -190,6 +192,40 @@ class State:
             except Exception as e:  # noqa: BLE001
                 self.jobs[jid].update(status="error", error=str(e))
                 log(f"[server] pipeline job failed for {vod}: {e}")
+        threading.Thread(target=run, daemon=True).start()
+        return jid
+
+    def start_youtube_job(self, url: str, count=None) -> str:
+        """Create clips from a completed YouTube link without downloading the full source video."""
+        with self.lock:
+            self.job_seq += 1
+            jid = f"yt{self.job_seq}"
+            self.jobs[jid] = {"kind": "youtube_clips", "status": "running",
+                              "phase": "Starting YouTube link processing…", "progress": 0, "error": ""}
+
+        def run():
+            def pcb(phase, frac=None):
+                with self.lock:
+                    job = self.jobs.get(jid)
+                    if job:
+                        job["phase"] = phase
+                        if frac is not None:
+                            job["progress"] = max(0, min(99, int(frac * 100)))
+            try:
+                from .remote_jobs import make_youtube_clips
+                out_dir, _project = make_youtube_clips(
+                    self.cfg, url, self.library_root, count=count, progress_cb=pcb
+                )
+                self.activate(out_dir)
+                with self.lock:
+                    self.jobs[jid].update(status="done", out_dir=out_dir, progress=100,
+                                          phase="YouTube clips ready")
+            except Exception as exc:  # noqa: BLE001
+                with self.lock:
+                    self.jobs[jid].update(status="error", phase="YouTube processing failed",
+                                          error=str(exc))
+                log(f"[youtube] link-to-clips job failed: {exc}")
+
         threading.Thread(target=run, daemon=True).start()
         return jid
 
@@ -449,8 +485,9 @@ class State:
                 d["export_stale"] = (not eexists) or (c.get("export_sig") != _export_sig(c))
                 d["can_reset"] = bool(c.get("export_spec"))
                 clips.append(d)
-            return {"active": True, "vod": os.path.basename(self.vod), "vod_duration": self.vod_duration,
-                    "out_dir": self.out_dir,
+            source = copy.deepcopy(self.project.get("source") or {})
+            return {"active": True, "vod": source.get("title") or os.path.basename(self.vod),
+                    "source": source, "vod_duration": self.vod_duration, "out_dir": self.out_dir,
                     "ai_available": bool(self.cfg.ai_enabled and util.get_api_key()),
                     "ai_enabled": bool(self.cfg.ai_enabled),
                     "ai_configured": bool(util.get_api_key()), "clips": clips}
@@ -902,14 +939,36 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"ok": False, "error": "empty key"}, 400)
                 util.set_api_key(k)
                 return self._json({"ok": True, "ai_available": bool(util.get_api_key())})
-            if p == "/api/import_url":
+            if p == "/api/inspect_url":
                 url = (body.get("url") or "").strip()
                 platform = (body.get("platform") or "").strip().lower()
                 if platform not in ("twitch", "youtube"):
                     return self._json({"error": "Choose Twitch or YouTube."}, 400)
                 if not url:
                     return self._json({"error": "Paste a video link first."}, 400)
-                return self._json({"job": STATE.start_source_import(url, platform)})
+                from .source_inspect import inspect_source_url
+                try:
+                    info = inspect_source_url(url, platform)
+                except ValueError as e:
+                    return self._json({"error": str(e)}, 400)
+                except Exception as e:  # noqa: BLE001
+                    log(f"[source inspect] {platform} inspection failed: {e}")
+                    return self._json({"error": str(e) or "Could not inspect that link."}, 502)
+                return self._json({"ok": True, "source": info})
+            if p == "/api/youtube_clips":
+                url = (body.get("url") or "").strip()
+                if not url:
+                    return self._json({"error": "Paste a YouTube video link first."}, 400)
+                try:
+                    from .youtube_source import parse_youtube_url
+                    parse_youtube_url(url)
+                except ValueError as exc:
+                    return self._json({"error": str(exc)}, 400)
+                return self._json({"job": STATE.start_youtube_job(url, body.get("count"))})
+            if p == "/api/import_url":
+                return self._json({
+                    "error": "Full-source downloads are disabled in this build. Use Check link for metadata-only inspection; link-to-clips processing is not integrated yet."
+                }, 410)
             if p == "/api/new_job":
                 vod = body.get("vod") or ""
                 if not STATE.valid_vod(vod):
