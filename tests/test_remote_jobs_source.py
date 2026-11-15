@@ -2,8 +2,8 @@
 import os
 import tempfile
 import unittest
+from types import SimpleNamespace
 
-from clipper.pipeline.detect import Candidate
 from clipper.pipeline.remote_jobs import _concat_escape, _safe_title, _select_candidates
 from clipper.pipeline.config import Config
 from clipper.pipeline.transcribe import _clipwords_key
@@ -11,14 +11,14 @@ from clipper.pipeline.transcribe import _clipwords_key
 
 class RemoteJobHelperTests(unittest.TestCase):
     def test_candidate_selection_uses_score_order_and_spacing(self):
-        high = Candidate(start=10, end=30, peak=18, score=90)
-        overlapping = Candidate(start=25, end=45, peak=33, score=85)
-        separate = Candidate(start=100, end=120, peak=110, score=80)
+        high = SimpleNamespace(start=10, end=30, peak=18, score=90)
+        overlapping = SimpleNamespace(start=25, end=45, peak=33, score=85)
+        separate = SimpleNamespace(start=100, end=120, peak=110, score=80)
         got = _select_candidates([high, overlapping, separate], 3, min_gap_s=10)
         self.assertEqual(got, [high, separate])
 
     def test_candidate_selection_respects_requested_count(self):
-        items = [Candidate(start=i * 100, end=i * 100 + 20, peak=i * 100 + 10, score=90-i)
+        items = [SimpleNamespace(start=i * 100, end=i * 100 + 20, peak=i * 100 + 10, score=90-i)
                  for i in range(5)]
         self.assertEqual(len(_select_candidates(items, 2)), 2)
 
