@@ -65,19 +65,20 @@ def hex_to_ass(h: str, alpha: int = 0) -> str:
 @dataclass
 class Config:
     # ---- transcription (faster-whisper) ----
-    model: str = "small.en"             # practical default for CPU-first Windows laptops; override in config.json
-    device: str = "auto"                 # auto -> CUDA when available, otherwise CPU
+    model: str = "base.en"              # i7-4770HQ profile: smaller CPU model; override in config.json
+    device: str = "cpu"                  # CPU-first profile; no NVIDIA GPU required
     compute_type_gpu: str = "float16"
     compute_type_cpu: str = "int8"       # memory-efficient CPU inference
+    cpu_threads: int = 4                 # leave headroom for Windows/UI on an i7-4770HQ
     language: str = "en"
-    beam_size: int = 3                   # faster CPU decoding; raise to 5 for accuracy over speed
+    beam_size: int = 1                   # lower CPU latency on 4-core mobile Haswell
     vad_filter: bool = False             # OFF: VAD mis-maps word timestamps (captions drift early)
     condition_on_previous_text: bool = False  # off -> fewer hallucination loops on long noisy audio
 
     # ---- transcription backend selection ----
     # auto: whisper.cpp (Vulkan) when its binary+device are present (AMD desktop), else
     # faster-whisper (CUDA/CPU, the NVIDIA laptop). Force with 'whispercpp' / 'faster_whisper'.
-    transcribe_backend: str = "auto"     # auto | whispercpp | faster_whisper
+    transcribe_backend: str = "faster_whisper"  # predictable Intel CPU path
     # whisper.cpp (Vulkan, AMD GPU). large-v3-turbo: ~28x realtime here with DTW word timing
     # whose accuracy matches large-v3 once the lead-correction below cancels its ~0.4s lag.
     wcpp_model: str = "large-v3-turbo"   # ggml model id (see transcribe_whispercpp._MODEL_MAP)
@@ -86,10 +87,10 @@ class Config:
     wcpp_word_lead_s: float = 0.40
 
     # ---- output canvas (9:16) ----
-    out_w: int = 1080
-    out_h: int = 1920
-    fps: int = 60
-    seam_y: int = 768                    # 40% facecam / 60% gameplay split
+    out_w: int = 720
+    out_h: int = 1280
+    fps: int = 30
+    seam_y: int = 512                    # 40% facecam / 60% gameplay split
 
     # ---- facecam crop FROM the 1920x1080 source (default; autodetect may override) ----
     # 380x270 (1.407) scales to the 1080x768 top panel (1.406) edge-to-edge.
@@ -97,7 +98,7 @@ class Config:
     cam_y: int = 360
     cam_w: int = 380
     cam_h: int = 270
-    cam_panel_h: int = 768               # = seam_y
+    cam_panel_h: int = 512               # = seam_y
     autodetect_cam: bool = True          # find the peachy-gold cam border per clip
     # source cam box bounds (the OBS Gameplay scene cam lives here) - used to clamp autodetect
     cam_src_xmin: int = 30
@@ -120,26 +121,26 @@ class Config:
     gp_y: int = 0
     gp_w: int = 1012
     gp_h: int = 1080
-    gp_panel_h: int = 1152               # = out_h - seam_y
+    gp_panel_h: int = 768                # = out_h - seam_y
 
     # ---- divider at the seam ----
-    div_gold_y: int = 765
-    div_gold_h: int = 6
-    div_lav_y: int = 771
+    div_gold_y: int = 509
+    div_gold_h: int = 4
+    div_lav_y: int = 513
     div_lav_h: int = 2
 
     # ---- captions (animated word-by-word karaoke, burned via ASS/libass) ----
     cap_font: str = "Poppins ExtraBold"
-    cap_size: int = 80                   # short-form spec is 80-120px at 1080 wide
+    cap_size: int = 54                   # short-form spec is 80-120px at 1080 wide
     cap_uppercase: bool = True
     cap_fill: str = WHITE                # inactive words
     cap_highlight: str = GOLD            # the currently-spoken word
     cap_outline_color: str = BLACK
-    cap_outline_w: int = 10              # thick stroke reads over busy gameplay at 1080w
+    cap_outline_w: int = 7              # thick stroke reads over busy gameplay at 1080w
     cap_shadow: int = 3
     cap_max_words: int = 4               # per on-screen line
     cap_break_pause_s: float = 0.6       # also break a line on a pause longer than this
-    cap_margin_v: int = 520              # lifts baseline to ~y1330-1380 (above the 400px bottom dead zone)
+    cap_margin_v: int = 346              # lifts baseline to ~y1330-1380 (above the 400px bottom dead zone)
     cap_margin_lr: int = 60
     cap_alignment: int = 2               # 2 = bottom-center
     cap_pop: bool = False                # scale-pop the active word (off by default to avoid line re-centering jitter)
@@ -193,7 +194,7 @@ class Config:
                                          # word/pause boundary so nothing is cut. Raise for more setup.
     seed_fwd_s: int = 16                 # rough end   = peak + this (let the payoff breathe)
     dedupe_gap_s: int = 90               # min spacing between picked clip centers
-    clip_count: int = 45                 # VOD target; fewer are returned when candidates do not meet quality
+    clip_count: int = 12                 # VOD target; fewer are returned when candidates do not meet quality
     keep_for_rerank: int = 30            # candidates handed to the optional LLM
     # robust normalization references
     speech_pct: int = 60                 # percentile of voiced frames = "typical speech" ref
@@ -243,7 +244,7 @@ class Config:
     ai_max_trim_s: float = 3.0           # LLM may nudge boundaries this much (re-validated vs silence map)
 
     # ---- encode ----
-    use_nvenc: bool = True               # h264_nvenc -preset p5 -cq 23; falls back to libx264 on error
+    use_nvenc: bool = False               # h264_nvenc -preset p5 -cq 23; falls back to libx264 on error
     x264_crf: int = 20
     audio_bitrate: str = "192k"
 
