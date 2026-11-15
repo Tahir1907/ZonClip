@@ -127,10 +127,12 @@ class State:
         n, vod = 0, ""
         try:
             pj = proj.load_project(d)
-            n, vod = len(pj.get("clips", [])), pj.get("vod", "")
+            source = pj.get("source") or {}
+            n = len(pj.get("clips", []))
+            vod = source.get("title") or os.path.basename(pj.get("vod", ""))
         except Exception:  # noqa: BLE001
             pass
-        return {"dir": d, "name": os.path.basename(d), "vod": os.path.basename(vod),
+        return {"dir": d, "name": os.path.basename(d), "vod": vod,
                 "clips": n, "mtime": os.path.getmtime(os.path.join(d, "project.json"))}
 
 
@@ -483,8 +485,9 @@ class State:
                 d["export_stale"] = (not eexists) or (c.get("export_sig") != _export_sig(c))
                 d["can_reset"] = bool(c.get("export_spec"))
                 clips.append(d)
-            return {"active": True, "vod": os.path.basename(self.vod), "vod_duration": self.vod_duration,
-                    "out_dir": self.out_dir,
+            source = copy.deepcopy(self.project.get("source") or {})
+            return {"active": True, "vod": source.get("title") or os.path.basename(self.vod),
+                    "source": source, "vod_duration": self.vod_duration, "out_dir": self.out_dir,
                     "ai_available": bool(self.cfg.ai_enabled and util.get_api_key()),
                     "ai_enabled": bool(self.cfg.ai_enabled),
                     "ai_configured": bool(util.get_api_key()), "clips": clips}
